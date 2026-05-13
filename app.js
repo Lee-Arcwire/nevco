@@ -1,17 +1,28 @@
 /* ====================================================================
-   Nevco 4770 Hockey Scoreboard Emulator (MPCW-7 controller)
+   Nevco 4770 Hockey Scoreboard Emulator — MPCW-7 controller logic.
 
-   Operation summary
-   - Toggle switch (Space): SET (up) <-> RUN (down)
-       * RUN  : dedicated keys adjust values directly (Score/Shots +1,
-                T.O.L. -1, Period +1)
-       * SET  : dedicated keys ARM numeric entry, digits + ENTER apply
-   - Horn (H key, or HORN button): held = horn on
-   - Penalty entry works in either toggle position:
-       PEN -> [player digits] ENTER -> [duration digits] ENTER
-       digits for duration: MSS or MMSS (e.g. 200 = 2:00, 1000 = 10:00)
-   - Clock display: MM:SS when >= 1 min, SS.T when < 1 min (with tenths)
-   - Penalties tick down only while the game clock is running.
+   Control model (matches the real MPCW-7):
+     - SET key toggles SET mode. In SET mode pressing a field key
+       (TIME / PERIOD / HOME SCORE / GUEST SCORE / GOAL SHOTS / GOAL SAVES)
+       arms a numeric entry. Type digits, then ENTER to apply, CANCEL
+       to abort.
+     - Outside SET mode the same field keys directly increment.
+     - TIME ON / TIME OFF start / stop the game clock (separate keys).
+     - NEW MINOR / NEW MAJOR add a 2:00 / 5:00 penalty for that team;
+       you are then asked for the player number (digits + ENTER).
+     - INSERT PENALTY waits for a team key (HOME / GUESTS), then
+       player # ENTER, then duration MMSS or MSS ENTER.
+     - CLEAR PENALTY waits for team key, then 1 or 2 to clear that slot.
+     - PENALTY ON / OFF pauses / resumes penalty countdown.
+     - HORN is press-and-hold (manual horn). Auto-horn fires at clock 0.
+     - HOME SCORE / GUEST SCORE +1 also lights the GOAL light briefly;
+       GOAL LIGHT RESET clears it immediately.
+     - OPTIONS / SCROLL PROFILES / TIME OF DAY / BLANK are stub
+       indicators that flash on the LED.
+
+   Clock display: MM:SS when >= 1:00, SS.T (with tenths) when < 1:00.
+   Penalty countdowns: only the first two of each team's queue count
+   down while the clock is running and not paused.
    ==================================================================== */
 
 (() => {
@@ -25,16 +36,22 @@
   const MAX_SCORE = 99;
   const MAX_PERIOD = 9;
   const MAX_SHOTS = 99;
+  const MAX_SAVES = 99;
   const MAX_TOL = 9;
   const MAX_PENALTY_QUEUE = 6;
+  const MINOR_MS = 2 * 60 * 1000;
+  const MAJOR_MS = 5 * 60 * 1000;
+  const FLASH_MS = 1200;
+  const GOAL_LIGHT_MS = 4000;
+  const AUTO_HORN_MS = 3000;
 
   // ---------------------------------------------------------------
   // State
   // ---------------------------------------------------------------
 
   const state = {
-    home:  { score: 0, shots: 0, tol: 1, penalties: [] },
-    guest: { score: 0, shots: 0, tol: 1, penalties: [] },
+    home:  { score: 0, shots: 0, saves: 0, tol: 1, penalties: [] },
+    guest: { score: 0, shots: 0, saves: 0, tol: 1, penalties: [] },
     period: 1,
     timeMs: PERIOD_DEFAULT_MS,
     clockRunning: false,
@@ -42,22 +59,26 @@
     hornManual: false,
     autoHorn: true,
     autoHornUntil: 0,
-    toggle: 'down',         // 'up' = SET, 'down' = RUN
+    setMode: false,         // true when SET has been pressed (awaits a field)
     entry: null,            // current numeric-entry context
     buffer: '',             // digits typed
-    lampTestUntil: 0,
+    penaltyPaused: false,
+    blanked: false,
+    goalLightUntil: 0,
     flash: null,            // transient LED message
+    flashUntil: 0,
   };
-
-  let flashUntil = 0;
 
   // Entry contexts:
   //   { kind: 'clock' }
   //   { kind: 'period' }
-  //   { kind: 'score',  team: 'home'|'guest' }
-  //   { kind: 'shots',  team: 'home'|'guest' }
-  //   { kind: 'tol',    team: 'home'|'guest' }
-  //   { kind: 'penalty', team, phase: 'player'|'time', player: number|null }
+  //   { kind: 'score',  team }
+  //   { kind: 'shots',  team }
+  //   { kind: 'saves',  team }
+  //   { kind: 'tol',    team }
+  //   { kind: 'penalty', team, phase: 'player'|'time', player, duration }
+  //   { kind: 'await-team',  then: 'insert-penalty' | 'clear-penalty' | 'edit-penalty' | 'view-penalty' }
+  //   { kind: 'clear-slot',  team }
 
   // ---------------------------------------------------------------
   // DOM references
@@ -66,20 +87,22 @@
   const $ = (id) => document.getElementById(id);
 
   const els = {
-    homeScore:        $('home-score'),
-    guestScore:       $('guest-score'),
-    homeShots:        $('home-shots'),
-    guestShots:       $('guest-shots'),
-    homeTol:          $('home-tol'),
-    guestTol:         $('guest-tol'),
-    period:           $('period'),
-    time:             $('time'),
-    timeBg:           $('time-bg'),
-    hornInd:          $('horn-indicator'),
-    led:              $('led-text'),
-    ledHint:          $('led-hint'),
-    toggle:           $('toggle-switch'),
-    hornButton:       $('horn-button'),
+    homeScore:  $('home-score'),
+    guestScore: $('guest-score'),
+    homeShots:  $('home-shots'),
+    guestShots: $('guest-shots'),
+    homeTol:    $('home-tol'),
+    guestTol:   $('guest-tol'),
+    period:     $('period'),
+    time:       $('time'),
+    timeBg:     $('time-bg'),
+    hornInd:    $('horn-indicator'),
+    goalLight:  $('goal-light'),
+    led:        $('led-text'),
+    ledHint:    $('led-hint'),
+    setLed:     $('set-led'),
+    setBtn:     $('set-button'),
+    hornButton: $('horn-button'),
     homePen: [
       { player: $('home-pen1-player'),  time: $('home-pen1-time')  },
       { player: $('home-pen2-player'),  time: $('home-pen2-time')  },
@@ -152,13 +175,11 @@
       const m = Math.floor(total / 60);
       const s = total % 60;
       return `${pad2(m)}:${pad2(s)}`;
-    } else {
-      // sub-minute: show SS.T (seconds.tenths)
-      const total = Math.floor(ms / 100); // tenths
-      const s = Math.floor(total / 10);
-      const t = total % 10;
-      return `${pad2(s)}.${t}`;
     }
+    const total = Math.floor(ms / 100); // tenths
+    const s = Math.floor(total / 10);
+    const t = total % 10;
+    return `${pad2(s)}.${t}`;
   }
 
   function formatPenaltyTime(ms) {
@@ -169,7 +190,6 @@
     return `${pad2(m)}:${pad2(s)}`;
   }
 
-  // Parse a digit string like "2000" -> 20:00, "200" -> 2:00, "59" -> 0:59
   function parseTimeDigits(digits) {
     if (!digits) return null;
     const n = parseInt(digits, 10);
@@ -178,9 +198,6 @@
     if (digits.length <= 2) {
       mins = 0;
       secs = n;
-    } else if (digits.length === 3) {
-      mins = Math.floor(n / 100);
-      secs = n % 100;
     } else {
       mins = Math.floor(n / 100);
       secs = n % 100;
@@ -190,10 +207,15 @@
   }
 
   function previewTime(digits) {
-    if (!digits) return '-:--';
+    if (!digits) return '--:--';
     const ms = parseTimeDigits(digits);
-    if (ms == null) return '?:??';
+    if (ms == null) return '??:??';
     return formatPenaltyTime(ms);
+  }
+
+  function formatWallClock() {
+    const d = new Date();
+    return `${pad2(d.getHours())}:${pad2(d.getMinutes())}.${pad2(d.getSeconds())}`;
   }
 
   // ---------------------------------------------------------------
@@ -201,19 +223,17 @@
   // ---------------------------------------------------------------
 
   function renderScoreboard() {
-    const lamp = Date.now() < state.lampTestUntil;
-
-    if (lamp) {
-      els.homeScore.textContent  = '88';
-      els.guestScore.textContent = '88';
-      els.homeShots.textContent  = '88';
-      els.guestShots.textContent = '88';
-      els.homeTol.textContent    = '8';
-      els.guestTol.textContent   = '8';
-      els.period.textContent     = '8';
-      els.time.textContent       = '88:88';
-      els.homePen.forEach(p => { p.player.textContent = '88'; p.time.textContent = '88:88'; });
-      els.guestPen.forEach(p => { p.player.textContent = '88'; p.time.textContent = '88:88'; });
+    if (state.blanked) {
+      els.homeScore.textContent  = '';
+      els.guestScore.textContent = '';
+      els.homeShots.textContent  = '';
+      els.guestShots.textContent = '';
+      els.homeTol.textContent    = '';
+      els.guestTol.textContent   = '';
+      els.period.textContent     = '';
+      els.time.textContent       = '';
+      els.homePen.forEach(p => { p.player.textContent = ''; p.time.textContent = ''; });
+      els.guestPen.forEach(p => { p.player.textContent = ''; p.time.textContent = ''; });
     } else {
       els.homeScore.textContent  = pad2(state.home.score);
       els.guestScore.textContent = pad2(state.guest.score);
@@ -224,15 +244,14 @@
       els.period.textContent     = String(state.period);
       els.time.textContent       = formatClock(state.timeMs);
       els.timeBg.textContent     = state.timeMs < 60 * 1000 ? '88.8' : '88:88';
-
-      renderPenaltySlots('home', els.homePen, state.home.penalties);
-      renderPenaltySlots('guest', els.guestPen, state.guest.penalties);
+      renderPenaltySlots(els.homePen,  state.home.penalties);
+      renderPenaltySlots(els.guestPen, state.guest.penalties);
     }
-
-    els.hornInd.classList.toggle('on', state.hornOn || lamp);
+    els.hornInd.classList.toggle('on', state.hornOn && !state.blanked);
+    els.goalLight.classList.toggle('on', Date.now() < state.goalLightUntil && !state.blanked);
   }
 
-  function renderPenaltySlots(team, slots, penalties) {
+  function renderPenaltySlots(slots, penalties) {
     for (let i = 0; i < slots.length; i++) {
       const p = penalties[i];
       if (p) {
@@ -246,27 +265,34 @@
   }
 
   function renderController() {
-    // Toggle position
-    if (els.toggle) {
-      els.toggle.dataset.pos = state.toggle === 'up' ? 'up' : 'down';
-    }
+    // SET LED
+    els.setLed.classList.toggle('on', state.setMode);
+    els.setBtn.classList.toggle('armed', state.setMode && !state.entry);
 
-    // Mode hint under LED
-    const mode = state.toggle === 'up' ? 'SET' : 'RUN';
-    const hint = state.entry
-      ? entryHint(state.entry)
-      : `Toggle ${state.toggle.toUpperCase()} · ${mode} mode`;
+    // Mode hint
+    let hint;
+    if (state.entry) {
+      hint = entryHint(state.entry);
+    } else if (state.setMode) {
+      hint = 'SET MODE · press a field to edit';
+    } else if (state.penaltyPaused) {
+      hint = 'PENALTY OFF · countdown paused';
+    } else {
+      hint = state.clockRunning ? 'RUN' : 'READY';
+    }
     els.ledHint.textContent = hint;
 
     // LED text
     els.led.textContent = ledText();
 
     // Highlight armed dedicated key
-    document.querySelectorAll('.key.armed').forEach(k => k.classList.remove('armed'));
+    document.querySelectorAll('.key.armed').forEach(k => {
+      if (k !== els.setBtn) k.classList.remove('armed');
+    });
     if (state.entry) {
       const sel = entryToKey(state.entry);
       if (sel) {
-        const el = document.querySelector(`.key[data-action="${sel}"]`);
+        const el = document.querySelector(sel);
         if (el) el.classList.add('armed');
       }
     }
@@ -274,76 +300,75 @@
 
   function entryToKey(entry) {
     switch (entry.kind) {
-      case 'clock':   return 'clock-set';
-      case 'period':  return 'period';
-      case 'score':   return entry.team === 'home' ? 'home-score' : 'guest-score';
-      case 'shots':   return entry.team === 'home' ? 'home-shots' : 'guest-shots';
-      case 'tol':     return entry.team === 'home' ? 'home-tol'   : 'guest-tol';
-      case 'penalty': return entry.team === 'home' ? 'home-penalty' : 'guest-penalty';
+      case 'clock':    return '[data-action="time-field"]';
+      case 'period':   return '[data-action="period"]';
+      case 'score':    return `[data-action="score"][data-team="${entry.team}"]`;
+      case 'shots':    return `[data-action="goal-shots"][data-team="${entry.team}"]`;
+      case 'saves':    return `[data-action="goal-saves"][data-team="${entry.team}"]`;
+      case 'penalty':
+        if (entry.minor) return `[data-action="new-minor"][data-team="${entry.team}"]`;
+        if (entry.major) return `[data-action="new-major"][data-team="${entry.team}"]`;
+        return '[data-action="insert-penalty"]';
+      case 'await-team':  return `[data-action="${entry.then}"]`;
+      case 'clear-slot':  return '[data-action="clear-penalty"]';
       default: return null;
     }
   }
 
-  function entryHint(entry) {
-    switch (entry.kind) {
-      case 'clock':   return 'Enter MMSS or MSS, ENTER';
-      case 'period':  return 'Enter period (1-9), ENTER';
-      case 'score':   return `Enter ${entry.team} score, ENTER`;
-      case 'shots':   return `Enter ${entry.team} shots, ENTER`;
-      case 'tol':     return `Enter ${entry.team} T.O.L., ENTER`;
+  function entryHint(e) {
+    switch (e.kind) {
+      case 'clock':   return 'TIME · enter MMSS / MSS, ENTER';
+      case 'period':  return 'PERIOD · enter 1-9, ENTER';
+      case 'score':   return `${e.team.toUpperCase()} SCORE · enter, ENTER`;
+      case 'shots':   return `${e.team.toUpperCase()} SHOTS · enter, ENTER`;
+      case 'saves':   return `${e.team.toUpperCase()} SAVES · enter, ENTER`;
+      case 'tol':     return `${e.team.toUpperCase()} T.O.L. · enter, ENTER`;
       case 'penalty':
-        return entry.phase === 'player'
-          ? `Enter ${entry.team} player #, ENTER`
-          : `Enter duration MMSS / MSS, ENTER`;
+        if (e.phase === 'player') {
+          const tag = e.minor ? 'MINOR' : (e.major ? 'MAJOR' : 'PEN');
+          return `${e.team.toUpperCase()} ${tag} · player # ENTER`;
+        }
+        return `${e.team.toUpperCase()} PEN · MMSS / MSS, ENTER`;
+      case 'await-team':
+        return `Press HOME or GUESTS to select team`;
+      case 'clear-slot':
+        return `${e.team.toUpperCase()} CLEAR · press 1 or 2`;
     }
     return '';
   }
 
   function ledText() {
-    if (state.flash && Date.now() < flashUntil) return state.flash;
-    if (Date.now() < state.lampTestUntil) return 'LAMP TEST';
+    if (state.flash && Date.now() < state.flashUntil) return state.flash;
+    if (state.blanked) return 'BLANK';
     if (!state.entry) {
-      // Idle: show clock or status
+      if (state.setMode) return 'SET';
       if (state.clockRunning) return formatClock(state.timeMs);
-      return 'READY';
+      return formatClock(state.timeMs);
     }
     const e = state.entry;
     const buf = state.buffer || '';
-
     switch (e.kind) {
-      case 'clock': {
-        const preview = buf ? previewTime(buf) : '--:--';
-        return `CLK ${preview}`;
-      }
-      case 'period': {
-        return `PER ${buf || '-'}`;
-      }
-      case 'score': {
-        const tag = e.team === 'home' ? 'HSC' : 'GSC';
-        return `${tag} ${buf.padStart(2, '-')}`;
-      }
-      case 'shots': {
-        const tag = e.team === 'home' ? 'HSH' : 'GSH';
-        return `${tag} ${buf.padStart(2, '-')}`;
-      }
-      case 'tol': {
-        const tag = e.team === 'home' ? 'HTO' : 'GTO';
-        return `${tag} ${buf || '-'}`;
-      }
-      case 'penalty': {
-        const tag = e.team === 'home' ? 'HPN' : 'GPN';
+      case 'clock':   return `CLK ${buf ? previewTime(buf) : '--:--'}`;
+      case 'period':  return `PER ${buf || '-'}`;
+      case 'score':   return `${e.team === 'home' ? 'HSC' : 'GSC'} ${buf.padStart(2, '-')}`;
+      case 'shots':   return `${e.team === 'home' ? 'HSH' : 'GSH'} ${buf.padStart(2, '-')}`;
+      case 'saves':   return `${e.team === 'home' ? 'HSV' : 'GSV'} ${buf.padStart(2, '-')}`;
+      case 'tol':     return `${e.team === 'home' ? 'HTO' : 'GTO'} ${buf || '-'}`;
+      case 'penalty':
         if (e.phase === 'player') {
-          return `${tag} P ${buf.padStart(2, '-')}`;
-        } else {
-          return `${tag} ${pad2(e.player)} ${previewTime(buf)}`;
+          return `${e.team === 'home' ? 'HPN' : 'GPN'} P ${buf.padStart(2, '-')}`;
         }
-      }
+        return `${e.team === 'home' ? 'HPN' : 'GPN'} ${pad2(e.player)} ${previewTime(buf)}`;
+      case 'await-team':
+        return 'SEL TEAM';
+      case 'clear-slot':
+        return `CLR ${e.team === 'home' ? 'H' : 'G'} ${buf || '?'}`;
     }
     return 'READY';
   }
 
   // ---------------------------------------------------------------
-  // Tick loop (clock + penalties + auto horn + auto-render)
+  // Tick loop
   // ---------------------------------------------------------------
 
   let lastTick = performance.now();
@@ -357,16 +382,14 @@
       if (state.timeMs <= 0) {
         state.timeMs = 0;
         state.clockRunning = false;
-        if (state.autoHorn) {
-          state.autoHornUntil = Date.now() + 3000;
-        }
+        if (state.autoHorn) state.autoHornUntil = Date.now() + AUTO_HORN_MS;
       }
-      // tick penalties
-      tickPenalties('home', dt);
-      tickPenalties('guest', dt);
+      if (!state.penaltyPaused) {
+        tickPenalties(state.home.penalties,  dt);
+        tickPenalties(state.guest.penalties, dt);
+      }
     }
 
-    // horn state
     const autoActive = Date.now() < state.autoHornUntil;
     const desired = state.hornManual || autoActive;
     if (desired && !state.hornOn) {
@@ -382,28 +405,16 @@
     requestAnimationFrame(tick);
   }
 
-  function tickPenalties(team, dt) {
-    const arr = state[team].penalties;
+  function tickPenalties(arr, dt) {
     if (!arr.length) return;
-    // Only the first two active penalties count down (typical hockey rule:
-    // a third coincident penalty is queued and starts when an active one
-    // expires).
     const active = Math.min(2, arr.length);
-    for (let i = 0; i < active; i++) {
-      arr[i].remainingMs -= dt;
-    }
-    // Remove expired
-    while (arr.length && arr[0].remainingMs <= 0) {
-      arr.shift();
-    }
-    // If we removed from front, the queued one (index 2) becomes active
+    for (let i = 0; i < active; i++) arr[i].remainingMs -= dt;
+    while (arr.length && arr[0].remainingMs <= 0) arr.shift();
   }
 
   // ---------------------------------------------------------------
-  // Actions / control flow
+  // Actions
   // ---------------------------------------------------------------
-
-  function inSetMode() { return state.toggle === 'up'; }
 
   function cancelEntry() {
     state.entry = null;
@@ -420,47 +431,72 @@
     obj[field] = Math.max(0, Math.min(max, obj[field] + delta));
   }
 
-  function pressClockToggle() {
-    if (state.entry && state.entry.kind === 'clock') {
-      // can't run while editing clock
-      return;
-    }
-    if (state.timeMs <= 0) return;
-    cancelEntry();
-    state.clockRunning = !state.clockRunning;
+  function flashLed(msg, ms = FLASH_MS) {
+    state.flash = msg;
+    state.flashUntil = Date.now() + ms;
   }
 
-  function pressClockSet() {
-    if (state.clockRunning) return; // clock must be stopped
-    if (state.entry && state.entry.kind === 'clock') {
+  function pressSet() {
+    if (state.entry) {
       cancelEntry();
-    } else {
-      arm({ kind: 'clock' });
     }
+    state.setMode = !state.setMode;
+  }
+
+  function pressTimeOn() {
+    cancelEntry();
+    state.setMode = false;
+    if (state.timeMs <= 0) {
+      flashLed('NO TIME');
+      return;
+    }
+    state.clockRunning = true;
+  }
+
+  function pressTimeOff() {
+    cancelEntry();
+    state.setMode = false;
+    state.clockRunning = false;
+  }
+
+  function pressTimeField() {
+    // Only acts as "edit clock time" in SET mode (matches the photo's note).
+    if (!state.setMode) {
+      flashLed('PRESS SET');
+      return;
+    }
+    if (state.clockRunning) {
+      flashLed('STOP CLK');
+      return;
+    }
+    arm({ kind: 'clock' });
   }
 
   function pressPeriod() {
-    if (inSetMode()) {
+    if (state.setMode) {
       arm({ kind: 'period' });
     } else {
       cancelEntry();
       state.period = Math.min(MAX_PERIOD, state.period + 1);
-      state.timeMs = PERIOD_DEFAULT_MS; // reset clock for new period
+      state.timeMs = PERIOD_DEFAULT_MS;
       state.clockRunning = false;
+      flashLed(`PER ${state.period}`);
     }
   }
 
   function pressScore(team) {
-    if (inSetMode()) {
+    if (state.setMode) {
       arm({ kind: 'score', team });
     } else {
       cancelEntry();
       bump(team, 'score', +1, MAX_SCORE);
+      state.goalLightUntil = Date.now() + GOAL_LIGHT_MS;
+      flashLed(`${team === 'home' ? 'H' : 'G'}-GOAL`);
     }
   }
 
   function pressShots(team) {
-    if (inSetMode()) {
+    if (state.setMode) {
       arm({ kind: 'shots', team });
     } else {
       cancelEntry();
@@ -468,23 +504,109 @@
     }
   }
 
-  function pressTol(team) {
-    if (inSetMode()) {
-      arm({ kind: 'tol', team });
+  function pressSaves(team) {
+    if (state.setMode) {
+      arm({ kind: 'saves', team });
     } else {
       cancelEntry();
-      bump(team, 'tol', -1, MAX_TOL);
+      bump(team, 'saves', +1, MAX_SAVES);
+      flashLed(`${team === 'home' ? 'H' : 'G'}-SV ${pad2(state[team].saves)}`);
     }
   }
 
-  function pressPenalty(team) {
-    if (state[team].penalties.length >= MAX_PENALTY_QUEUE) return;
-    arm({ kind: 'penalty', team, phase: 'player', player: null });
+  function pressNewPenalty(team, kind /* 'minor' | 'major' */) {
+    if (state[team].penalties.length >= MAX_PENALTY_QUEUE) {
+      flashLed('PEN FULL');
+      return;
+    }
+    arm({
+      kind: 'penalty',
+      team,
+      phase: 'player',
+      player: null,
+      duration: kind === 'minor' ? MINOR_MS : MAJOR_MS,
+      minor: kind === 'minor',
+      major: kind === 'major',
+    });
+  }
+
+  function pressInsertPenalty() {
+    arm({ kind: 'await-team', then: 'insert-penalty' });
+  }
+
+  function pressClearPenalty() {
+    arm({ kind: 'await-team', then: 'clear-penalty' });
+  }
+
+  function pressViewPenalty() {
+    // Briefly summarise penalty queue on the LED
+    const h = state.home.penalties;
+    const g = state.guest.penalties;
+    if (!h.length && !g.length) {
+      flashLed('NO PEN', 1500);
+      return;
+    }
+    const fmt = (p, tag) => `${tag}${pad2(p.player)}-${formatPenaltyTime(p.remainingMs)}`;
+    if (h.length) flashLed(fmt(h[0], 'H'), 1500);
+    else flashLed(fmt(g[0], 'G'), 1500);
+  }
+
+  function pressEditPenalty() {
+    arm({ kind: 'await-team', then: 'edit-penalty' });
+  }
+
+  function pressPenaltyOnOff() {
+    state.penaltyPaused = !state.penaltyPaused;
+    flashLed(state.penaltyPaused ? 'PEN OFF' : 'PEN ON');
+  }
+
+  function pressTeam(team) {
+    const e = state.entry;
+    if (!e || e.kind !== 'await-team') {
+      // Outside of a team-pending action, HOME / GUESTS keys flash the team name
+      flashLed(team === 'home' ? 'HOME' : 'GUESTS');
+      return;
+    }
+    switch (e.then) {
+      case 'insert-penalty':
+        arm({ kind: 'penalty', team, phase: 'player', player: null });
+        break;
+      case 'clear-penalty':
+        arm({ kind: 'clear-slot', team });
+        break;
+      case 'edit-penalty':
+        // Edit: replace slot 1's duration for that team via new MMSS entry.
+        // (Real device walks through full edit flow; this is a simplification.)
+        if (!state[team].penalties.length) {
+          flashLed('NO PEN');
+          cancelEntry();
+          return;
+        }
+        arm({ kind: 'penalty', team, phase: 'time', player: state[team].penalties[0].player, edit: true });
+        break;
+      default:
+        cancelEntry();
+    }
   }
 
   function pressNum(d) {
-    if (!state.entry) return;
     const e = state.entry;
+    if (!e) return;
+    if (e.kind === 'await-team') return;
+    if (e.kind === 'clear-slot') {
+      const slot = parseInt(d, 10);
+      if (slot === 1 || slot === 2) {
+        const arr = state[e.team].penalties;
+        if (arr[slot - 1]) {
+          arr.splice(slot - 1, 1);
+          flashLed(`CLR ${e.team === 'home' ? 'H' : 'G'}${slot}`);
+        } else {
+          flashLed('NO PEN');
+        }
+        cancelEntry();
+      }
+      return;
+    }
     const max = numericMaxLen(e);
     if (state.buffer.length < max) state.buffer += d;
   }
@@ -495,160 +617,168 @@
       case 'period':  return 1;
       case 'score':   return 2;
       case 'shots':   return 2;
+      case 'saves':   return 2;
       case 'tol':     return 1;
-      case 'penalty':
-        return e.phase === 'player' ? 2 : 4;
+      case 'penalty': return e.phase === 'player' ? 2 : 4;
     }
     return 2;
   }
 
-  function pressBack() {
-    if (!state.entry) return;
-    if (state.buffer.length > 0) {
-      state.buffer = state.buffer.slice(0, -1);
+  function pressCancel() {
+    if (state.entry) {
+      cancelEntry();
+    } else if (state.setMode) {
+      state.setMode = false;
     }
   }
 
-  function pressClear() {
-    cancelEntry();
-  }
-
   function pressEnter() {
-    if (!state.entry) return;
     const e = state.entry;
+    if (!e) return;
     const buf = state.buffer;
-
     switch (e.kind) {
       case 'clock': {
         const ms = parseTimeDigits(buf);
         if (ms != null) state.timeMs = ms;
+        else flashLed('BAD TIME');
         cancelEntry();
+        state.setMode = false;
         return;
       }
       case 'period': {
         const n = parseInt(buf, 10);
-        if (!Number.isNaN(n) && n >= 1 && n <= MAX_PERIOD) {
-          state.period = n;
-        }
+        if (!Number.isNaN(n) && n >= 1 && n <= MAX_PERIOD) state.period = n;
         cancelEntry();
+        state.setMode = false;
         return;
       }
       case 'score': {
         const n = parseInt(buf, 10);
-        if (!Number.isNaN(n) && n >= 0 && n <= MAX_SCORE) {
-          state[e.team].score = n;
-        }
+        if (!Number.isNaN(n) && n >= 0 && n <= MAX_SCORE) state[e.team].score = n;
         cancelEntry();
+        state.setMode = false;
         return;
       }
       case 'shots': {
         const n = parseInt(buf, 10);
-        if (!Number.isNaN(n) && n >= 0 && n <= MAX_SHOTS) {
-          state[e.team].shots = n;
-        }
+        if (!Number.isNaN(n) && n >= 0 && n <= MAX_SHOTS) state[e.team].shots = n;
         cancelEntry();
+        state.setMode = false;
         return;
       }
-      case 'tol': {
+      case 'saves': {
         const n = parseInt(buf, 10);
-        if (!Number.isNaN(n) && n >= 0 && n <= MAX_TOL) {
-          state[e.team].tol = n;
-        }
+        if (!Number.isNaN(n) && n >= 0 && n <= MAX_SAVES) state[e.team].saves = n;
         cancelEntry();
+        state.setMode = false;
         return;
       }
       case 'penalty': {
         if (e.phase === 'player') {
           const player = parseInt(buf, 10);
           if (Number.isNaN(player) || player < 0 || player > 99) {
-            // ignore
+            flashLed('BAD #');
+            return;
+          }
+          if (e.duration != null) {
+            state[e.team].penalties.push({ player, remainingMs: e.duration });
+            cancelEntry();
+            flashLed(`${e.team === 'home' ? 'H' : 'G'}-PEN`);
             return;
           }
           state.entry = { kind: 'penalty', team: e.team, phase: 'time', player };
           state.buffer = '';
           return;
-        } else {
-          const ms = parseTimeDigits(buf);
-          if (ms != null && ms > 0) {
-            state[e.team].penalties.push({
-              player: e.player,
-              remainingMs: ms,
-            });
-          }
-          cancelEntry();
+        }
+        const ms = parseTimeDigits(buf);
+        if (ms == null || ms <= 0) {
+          flashLed('BAD TIME');
           return;
         }
+        if (e.edit) {
+          const arr = state[e.team].penalties;
+          if (arr.length) arr[0].remainingMs = ms;
+        } else {
+          state[e.team].penalties.push({ player: e.player, remainingMs: ms });
+        }
+        cancelEntry();
+        return;
       }
     }
   }
 
-  function pressReset() {
-    if (!inSetMode()) return; // safety: only reset in SET mode
-    state.home  = { score: 0, shots: 0, tol: 1, penalties: [] };
-    state.guest = { score: 0, shots: 0, tol: 1, penalties: [] };
-    state.period = 1;
-    state.timeMs = PERIOD_DEFAULT_MS;
-    state.clockRunning = false;
-    state.autoHornUntil = 0;
-    cancelEntry();
+  function pressYes() {
+    flashLed('YES');
   }
 
-  function pressLampTest() {
-    state.lampTestUntil = Date.now() + 3000;
-    cancelEntry();
+  function pressNo() {
+    flashLed('NO');
   }
 
-  function pressAutoHorn() {
-    state.autoHorn = !state.autoHorn;
-    // give a brief LED hint
-    flashLed(state.autoHorn ? 'AUTO ON' : 'AUTO OFF');
+  function pressTimeoutTimer() {
+    flashLed('TO TIMER');
   }
 
-  function flashLed(msg) {
-    state.flash = msg;
-    flashUntil = Date.now() + 1100;
+  function pressGoalLightReset() {
+    state.goalLightUntil = 0;
+    flashLed('GL RST');
+  }
+
+  function pressOptions() {
+    flashLed('OPTIONS');
+  }
+
+  function pressScrollProfiles() {
+    flashLed('PROFILES');
+  }
+
+  function pressTimeOfDay() {
+    flashLed(formatWallClock(), 2000);
+  }
+
+  function pressBlank() {
+    state.blanked = !state.blanked;
+    flashLed(state.blanked ? 'BLANK ON' : 'BLANK OFF');
   }
 
   function setHornManual(on) {
     state.hornManual = !!on;
   }
 
-  function toggleSwitch() {
-    state.toggle = state.toggle === 'up' ? 'down' : 'up';
-    // SET mode requires clock stopped if currently editing a value
-    if (state.toggle === 'down') {
-      // switching to RUN: cancel pending numeric entries that require SET
-      // (but keep penalty/clock entries since those work in both modes)
-      if (state.entry && !['penalty', 'clock'].includes(state.entry.kind)) {
-        cancelEntry();
-      }
-    }
-  }
-
   // ---------------------------------------------------------------
   // Dispatcher
   // ---------------------------------------------------------------
 
-  function doAction(action, val) {
+  function doAction(action, val, team) {
     switch (action) {
-      case 'clock-toggle':  pressClockToggle();   break;
-      case 'clock-set':     pressClockSet();      break;
-      case 'period':        pressPeriod();        break;
-      case 'home-score':    pressScore('home');   break;
-      case 'guest-score':   pressScore('guest');  break;
-      case 'home-shots':    pressShots('home');   break;
-      case 'guest-shots':   pressShots('guest');  break;
-      case 'home-tol':      pressTol('home');     break;
-      case 'guest-tol':     pressTol('guest');    break;
-      case 'home-penalty':  pressPenalty('home'); break;
-      case 'guest-penalty': pressPenalty('guest');break;
-      case 'num':           pressNum(val);        break;
-      case 'enter':         pressEnter();         break;
-      case 'clear':         pressClear();         break;
-      case 'back':          pressBack();          break;
-      case 'reset':         pressReset();         break;
-      case 'lamp-test':     pressLampTest();      break;
-      case 'auto-horn':     pressAutoHorn();      break;
+      case 'set':              pressSet();                break;
+      case 'time-on':          pressTimeOn();             break;
+      case 'time-off':         pressTimeOff();            break;
+      case 'time-field':       pressTimeField();          break;
+      case 'period':           pressPeriod();             break;
+      case 'score':            pressScore(team);          break;
+      case 'goal-shots':       pressShots(team);          break;
+      case 'goal-saves':       pressSaves(team);          break;
+      case 'new-minor':        pressNewPenalty(team, 'minor'); break;
+      case 'new-major':        pressNewPenalty(team, 'major'); break;
+      case 'insert-penalty':   pressInsertPenalty();      break;
+      case 'clear-penalty':    pressClearPenalty();       break;
+      case 'view-penalty':     pressViewPenalty();        break;
+      case 'edit-penalty':     pressEditPenalty();        break;
+      case 'penalty-onoff':    pressPenaltyOnOff();       break;
+      case 'team-home':        pressTeam('home');         break;
+      case 'team-guest':       pressTeam('guest');        break;
+      case 'num':              pressNum(val);             break;
+      case 'enter':            pressEnter();              break;
+      case 'cancel':           pressCancel();             break;
+      case 'yes':              pressYes();                break;
+      case 'no':               pressNo();                 break;
+      case 'timeout-timer':    pressTimeoutTimer();       break;
+      case 'goal-light-reset': pressGoalLightReset();     break;
+      case 'options':          pressOptions();            break;
+      case 'scroll-profiles':  pressScrollProfiles();     break;
+      case 'time-of-day':      pressTimeOfDay();          break;
+      case 'blank':            pressBlank();              break;
     }
   }
 
@@ -662,7 +792,6 @@
       if (!action) return;
 
       if (action === 'horn') {
-        // Press & hold semantics for horn button
         const press = (e) => {
           e.preventDefault();
           ensureAudio();
@@ -686,36 +815,32 @@
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         ensureAudio();
-        doAction(action, btn.dataset.val);
-        // brief visual feedback
+        doAction(action, btn.dataset.val, btn.dataset.team);
         btn.classList.add('pressed');
         setTimeout(() => btn.classList.remove('pressed'), 90);
       });
     });
   }
 
-  function bindToggle() {
-    els.toggle.addEventListener('click', (e) => {
-      e.preventDefault();
-      ensureAudio();
-      toggleSwitch();
-    });
-  }
-
   function bindKeyboard() {
-    // Avoid duplicate horn-on from key repeat
     let hornHeld = false;
-    let spaceHeld = false; // prevent toggle on key-repeat
+    let setHeld = false;
 
     document.addEventListener('keydown', (e) => {
+      // Don't capture keys when focus is on a real input
+      const t = e.target;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+
       if (e.key === ' ' || e.code === 'Space') {
         e.preventDefault();
-        if (!spaceHeld) {
-          spaceHeld = true;
+        if (!setHeld) {
+          setHeld = true;
           ensureAudio();
-          toggleSwitch();
+          pressSet();
         }
-      } else if (e.key === 'h' || e.key === 'H') {
+        return;
+      }
+      if (e.key === 'h' || e.key === 'H') {
         e.preventDefault();
         if (!hornHeld) {
           hornHeld = true;
@@ -723,12 +848,37 @@
           setHornManual(true);
           els.hornButton.classList.add('pressed');
         }
+        return;
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        ensureAudio();
+        pressEnter();
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        pressCancel();
+        return;
+      }
+      if (e.key === 'Backspace') {
+        e.preventDefault();
+        if (state.entry && state.buffer.length > 0) {
+          state.buffer = state.buffer.slice(0, -1);
+        }
+        return;
+      }
+      if (/^[0-9]$/.test(e.key)) {
+        e.preventDefault();
+        ensureAudio();
+        pressNum(e.key);
+        return;
       }
     });
 
     document.addEventListener('keyup', (e) => {
       if (e.key === ' ' || e.code === 'Space') {
-        spaceHeld = false;
+        setHeld = false;
       } else if (e.key === 'h' || e.key === 'H') {
         hornHeld = false;
         setHornManual(false);
@@ -738,7 +888,7 @@
 
     window.addEventListener('blur', () => {
       hornHeld = false;
-      spaceHeld = false;
+      setHeld = false;
       setHornManual(false);
       els.hornButton.classList.remove('pressed');
     });
@@ -750,7 +900,6 @@
 
   function init() {
     bindKeypad();
-    bindToggle();
     bindKeyboard();
     requestAnimationFrame((t) => { lastTick = t; tick(t); });
   }

@@ -6,7 +6,7 @@
   <title>Nevco 4770 Hockey Scoreboard Emulator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700;900&family=Inter:wght@400;600;700&family=Bebas+Neue&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dseg@0.46.0/css/dseg.min.css">
   <link rel="stylesheet" href="styles.css">
 </head>
@@ -22,7 +22,7 @@
           <div class="sb-col sb-col-home">
             <div class="sb-label">HOME</div>
             <div class="sb-display sb-display-score">
-              <div class="seg seg-2" data-target="home-score">
+              <div class="seg seg-2">
                 <span class="seg-bg">88</span>
                 <span class="seg-fg" id="home-score">00</span>
               </div>
@@ -96,9 +96,15 @@
                 <span class="seg-fg" id="time">20:00</span>
               </div>
             </div>
-            <div class="sb-horn-indicator">
-              <span class="horn-dot" id="horn-indicator"></span>
-              <span class="horn-text">HORN</span>
+            <div class="sb-indicators">
+              <div class="sb-ind">
+                <span class="ind-dot" id="horn-indicator"></span>
+                <span class="ind-text">HORN</span>
+              </div>
+              <div class="sb-ind">
+                <span class="ind-dot ind-goal" id="goal-light"></span>
+                <span class="ind-text">GOAL</span>
+              </div>
             </div>
           </div>
 
@@ -170,142 +176,199 @@
     <!-- ============== CONTROLLER ============== -->
     <section class="controller" aria-label="MPCW-7 hand controller">
       <div class="ctrl-body">
-        <div class="ctrl-screws">
-          <span class="screw screw-tl"></span>
-          <span class="screw screw-tr"></span>
-          <span class="screw screw-bl"></span>
-          <span class="screw screw-br"></span>
-        </div>
-
         <div class="ctrl-header">
-          <div class="ctrl-brand">
-            <div class="ctrl-brand-name">NEVCO</div>
-            <div class="ctrl-brand-model">MPCW-7 HOCKEY</div>
-          </div>
-          <div class="ctrl-power" title="Power LED">
-            <span class="power-led on"></span>
-            <span class="power-label">PWR</span>
-          </div>
+          <div class="ctrl-sport">HOCKEY</div>
         </div>
 
-        <!-- LED display section -->
-        <div class="ctrl-led-section">
-          <div class="ctrl-led-label">CONTROLLER DISPLAY</div>
-          <div class="ctrl-led-window">
-            <span class="ctrl-led-bg">~~~~~~~~~~~~</span>
-            <span class="ctrl-led-text" id="led-text">READY</span>
-          </div>
-          <div class="ctrl-led-hint" id="led-hint">Toggle DOWN &middot; RUN mode</div>
-        </div>
+        <div class="ctrl-main">
 
-        <!-- Toggle switch -->
-        <div class="ctrl-toggle-section">
-          <div class="ctrl-toggle-frame">
-            <div class="ctrl-toggle-label-top">SET</div>
-            <div class="ctrl-toggle">
-              <button id="toggle-switch" class="toggle-lever" aria-label="Toggle switch (Space)">
-                <span class="lever-knob"></span>
-              </button>
+          <!-- ===== LEFT FUNCTION PAD ===== -->
+          <div class="fnpad" aria-label="function keypad">
+
+            <!-- Row 1 -->
+            <button type="button" class="key key-fn" data-action="horn" id="horn-button" data-row="1" data-col="1">
+              <span class="lbl lbl-red">HORN</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="new-minor" data-team="home" data-row="1" data-col="2">
+              <span class="lbl lbl-blue">NEW</span>
+              <span class="lbl lbl-blue">MINOR</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="new-minor" data-team="guest" data-row="1" data-col="3">
+              <span class="lbl lbl-blue">NEW</span>
+              <span class="lbl lbl-blue">MINOR</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="set" id="set-button" data-row="1" data-col="4">
+              <span class="lbl">SET</span>
+            </button>
+
+            <!-- Row 2 -->
+            <button type="button" class="key key-fn" data-action="insert-penalty" data-row="2" data-col="1">
+              <span class="lbl lbl-blue">INSERT</span>
+              <span class="lbl lbl-blue">PENALTY</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="new-major" data-team="home" data-row="2" data-col="2">
+              <span class="lbl lbl-blue">NEW</span>
+              <span class="lbl lbl-blue">MAJOR</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="new-major" data-team="guest" data-row="2" data-col="3">
+              <span class="lbl lbl-blue">NEW</span>
+              <span class="lbl lbl-blue">MAJOR</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="time-field" data-row="2" data-col="4">
+              <span class="lbl">TIME</span>
+            </button>
+
+            <!-- Row 3 -->
+            <button type="button" class="key key-fn" data-action="penalty-onoff" data-row="3" data-col="1">
+              <span class="lbl lbl-blue lbl-sm">PENALTY</span>
+              <span class="lbl lbl-blue lbl-sm">ON / OFF</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="view-penalty" data-row="3" data-col="2">
+              <span class="lbl lbl-blue">VIEW</span>
+              <span class="lbl lbl-blue">PENALTY</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="edit-penalty" data-row="3" data-col="3">
+              <span class="lbl lbl-blue">EDIT</span>
+              <span class="lbl lbl-blue">PENALTY</span>
+            </button>
+            <div class="fn-blank" data-row="3" data-col="4" aria-hidden="true"></div>
+
+            <!-- Row 4 -->
+            <button type="button" class="key key-fn" data-action="time-on" data-row="4" data-col="1">
+              <span class="lbl lbl-green">TIME ON</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="goal-saves" data-team="home" data-row="4" data-col="2">
+              <span class="lbl lbl-blue">GOAL</span>
+              <span class="lbl lbl-blue">SAVES</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="goal-saves" data-team="guest" data-row="4" data-col="3">
+              <span class="lbl lbl-blue">GOAL</span>
+              <span class="lbl lbl-blue">SAVES</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="clear-penalty" data-row="4" data-col="4">
+              <span class="lbl lbl-blue">CLEAR</span>
+              <span class="lbl lbl-blue">PENALTY</span>
+            </button>
+
+            <!-- Row 5 -->
+            <div class="fn-alt-label" data-row="5" data-col="1" aria-hidden="true">
+              <span>ALTERNATE TIME CONTROL</span>
             </div>
-            <div class="ctrl-toggle-label-bot">RUN</div>
+            <button type="button" class="key key-fn" data-action="goal-shots" data-team="home" data-row="5" data-col="2">
+              <span class="lbl lbl-blue">GOAL</span>
+              <span class="lbl lbl-blue">SHOTS</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="goal-shots" data-team="guest" data-row="5" data-col="3">
+              <span class="lbl lbl-blue">GOAL</span>
+              <span class="lbl lbl-blue">SHOTS</span>
+            </button>
+            <button type="button" class="key key-fn" data-action="period" data-row="5" data-col="4">
+              <span class="lbl">PERIOD</span>
+            </button>
+
+            <!-- Row 6 -->
+            <button type="button" class="key key-fn" data-action="time-off" data-row="6" data-col="1">
+              <span class="lbl lbl-red">TIME OFF</span>
+            </button>
+            <div class="fn-blank" data-row="6" data-col="2" aria-hidden="true"></div>
+            <button type="button" class="key key-fn key-team-home" data-action="team-home" data-row="6" data-col="3">
+              <span class="lbl">HOME</span>
+            </button>
+            <button type="button" class="key key-fn key-team-guest" data-action="team-guest" data-row="6" data-col="4">
+              <span class="lbl">GUESTS</span>
+            </button>
+
+            <div class="fn-note fn-note-left">Press <b>SET</b>, then <b>TIME</b>, to change time.<br>Press <b>SET</b>, then another key to make corrections.</div>
           </div>
-          <div class="ctrl-toggle-hint">SPACE</div>
-        </div>
 
-        <!-- Keypad -->
-        <div class="keypad">
+          <!-- ===== MIDDLE: LED + BRAND ===== -->
+          <div class="ctrl-middle">
+            <div class="ctrl-led-window">
+              <span class="ctrl-led-bg">~~~~~~~~~~~~</span>
+              <span class="ctrl-led-text" id="led-text">READY</span>
+            </div>
+            <div class="ctrl-led-hint" id="led-hint">&nbsp;</div>
+            <div class="ctrl-brand">
+              <span class="ctrl-brand-speaker" aria-hidden="true">&#9836;</span>
+              <span class="ctrl-brand-name">nevco</span>
+            </div>
+            <div class="ctrl-set-led" id="set-led" aria-label="SET mode indicator">
+              <span class="set-dot"></span>
+              <span class="set-label">SET MODE</span>
+            </div>
+          </div>
 
-          <!-- Row 1: time/period/horn -->
-          <button type="button" class="key key-fn" data-action="clock-toggle">
-            <span class="key-cap">CLOCK</span>
-            <span class="key-sub">START / STOP</span>
-          </button>
-          <button type="button" class="key key-fn" data-action="clock-set">
-            <span class="key-cap">CLOCK</span>
-            <span class="key-sub">SET</span>
-          </button>
-          <button type="button" class="key key-fn" data-action="period">
-            <span class="key-cap">PERIOD</span>
-            <span class="key-sub">+1 / SET</span>
-          </button>
-          <button type="button" class="key key-horn" data-action="horn" id="horn-button">
-            <span class="key-cap">HORN</span>
-            <span class="key-sub">H</span>
-          </button>
+          <!-- ===== RIGHT NUMERIC PAD ===== -->
+          <div class="numpad" aria-label="numeric keypad">
 
-          <!-- Row 2: home/guest scores + penalties -->
-          <button type="button" class="key key-home" data-action="home-score">
-            <span class="key-cap">HOME</span>
-            <span class="key-sub">SCORE</span>
-          </button>
-          <button type="button" class="key key-home" data-action="home-penalty">
-            <span class="key-cap">HOME</span>
-            <span class="key-sub">PENALTY</span>
-          </button>
-          <button type="button" class="key key-guest" data-action="guest-penalty">
-            <span class="key-cap">GUEST</span>
-            <span class="key-sub">PENALTY</span>
-          </button>
-          <button type="button" class="key key-guest" data-action="guest-score">
-            <span class="key-cap">GUEST</span>
-            <span class="key-sub">SCORE</span>
-          </button>
+            <!-- Row 1 -->
+            <button type="button" class="key key-num-fn" data-action="timeout-timer" data-row="1" data-col="1">
+              <span class="lbl lbl-num">TIME OUT</span>
+              <span class="lbl lbl-num">TIMER</span>
+            </button>
+            <button type="button" class="key key-num-fn" data-action="goal-light-reset" data-row="1" data-col="2">
+              <span class="lbl lbl-num">GOAL LIGHT</span>
+              <span class="lbl lbl-num">RESET</span>
+            </button>
+            <button type="button" class="key key-num-fn" data-action="options" data-row="1" data-col="3">
+              <span class="lbl lbl-num">OPTIONS</span>
+            </button>
+            <button type="button" class="key key-yes" data-action="yes" data-row="1" data-col="4">
+              <span class="lbl">YES</span>
+            </button>
+            <button type="button" class="key key-enter" data-action="enter" data-row="1" data-col="5">
+              <span class="lbl">ENTER</span>
+            </button>
 
-          <!-- Row 3: shots + TOL -->
-          <button type="button" class="key key-fn" data-action="home-shots">
-            <span class="key-cap">HOME</span>
-            <span class="key-sub">SHOTS</span>
-          </button>
-          <button type="button" class="key key-fn" data-action="home-tol">
-            <span class="key-cap">HOME</span>
-            <span class="key-sub">T.O.L.</span>
-          </button>
-          <button type="button" class="key key-fn" data-action="guest-tol">
-            <span class="key-cap">GUEST</span>
-            <span class="key-sub">T.O.L.</span>
-          </button>
-          <button type="button" class="key key-fn" data-action="guest-shots">
-            <span class="key-cap">GUEST</span>
-            <span class="key-sub">SHOTS</span>
-          </button>
+            <!-- Row 2 -->
+            <button type="button" class="key key-digit" data-action="num" data-val="7" data-row="2" data-col="1"><span class="lbl lbl-big">7</span></button>
+            <button type="button" class="key key-digit" data-action="num" data-val="8" data-row="2" data-col="2"><span class="lbl lbl-big">8</span></button>
+            <button type="button" class="key key-digit" data-action="num" data-val="9" data-row="2" data-col="3"><span class="lbl lbl-big">9</span></button>
+            <button type="button" class="key key-no" data-action="no" data-row="2" data-col="4">
+              <span class="lbl">NO</span>
+            </button>
+            <button type="button" class="key key-cancel" data-action="cancel" data-row="2" data-col="5">
+              <span class="lbl">CANCEL</span>
+            </button>
 
-          <!-- Row 4-7: numeric -->
-          <button type="button" class="key key-num" data-action="num" data-val="1"><span class="key-cap">1</span></button>
-          <button type="button" class="key key-num" data-action="num" data-val="2"><span class="key-cap">2</span></button>
-          <button type="button" class="key key-num" data-action="num" data-val="3"><span class="key-cap">3</span></button>
-          <button type="button" class="key key-ctrl" data-action="clear">
-            <span class="key-cap">CLR</span>
-            <span class="key-sub">CANCEL</span>
-          </button>
+            <!-- Row 3 -->
+            <button type="button" class="key key-digit" data-action="num" data-val="4" data-row="3" data-col="1"><span class="lbl lbl-big">4</span></button>
+            <button type="button" class="key key-digit" data-action="num" data-val="5" data-row="3" data-col="2"><span class="lbl lbl-big">5</span></button>
+            <button type="button" class="key key-digit" data-action="num" data-val="6" data-row="3" data-col="3"><span class="lbl lbl-big">6</span></button>
+            <div class="num-blank" data-row="3" data-col="4" aria-hidden="true"></div>
+            <button type="button" class="key key-num-fn" data-action="time-of-day" data-row="3" data-col="5">
+              <span class="lbl lbl-num">TIME OF</span>
+              <span class="lbl lbl-num">DAY</span>
+            </button>
 
-          <button type="button" class="key key-num" data-action="num" data-val="4"><span class="key-cap">4</span></button>
-          <button type="button" class="key key-num" data-action="num" data-val="5"><span class="key-cap">5</span></button>
-          <button type="button" class="key key-num" data-action="num" data-val="6"><span class="key-cap">6</span></button>
-          <button type="button" class="key key-ctrl" data-action="reset">
-            <span class="key-cap">RESET</span>
-            <span class="key-sub">GAME</span>
-          </button>
+            <!-- Row 4 -->
+            <button type="button" class="key key-digit" data-action="num" data-val="1" data-row="4" data-col="1"><span class="lbl lbl-big">1</span></button>
+            <button type="button" class="key key-digit" data-action="num" data-val="2" data-row="4" data-col="2"><span class="lbl lbl-big">2</span></button>
+            <button type="button" class="key key-digit" data-action="num" data-val="3" data-row="4" data-col="3"><span class="lbl lbl-big">3</span></button>
+            <div class="num-blank" data-row="4" data-col="4" aria-hidden="true"></div>
+            <button type="button" class="key key-score-home" data-action="score" data-team="home" data-row="4" data-col="5">
+              <span class="lbl lbl-score">HOME</span>
+              <span class="lbl lbl-score">SCORE</span>
+            </button>
 
-          <button type="button" class="key key-num" data-action="num" data-val="7"><span class="key-cap">7</span></button>
-          <button type="button" class="key key-num" data-action="num" data-val="8"><span class="key-cap">8</span></button>
-          <button type="button" class="key key-num" data-action="num" data-val="9"><span class="key-cap">9</span></button>
-          <button type="button" class="key key-ctrl" data-action="auto-horn">
-            <span class="key-cap">AUTO</span>
-            <span class="key-sub">HORN</span>
-          </button>
+            <!-- Row 5 -->
+            <button type="button" class="key key-num-fn" data-action="scroll-profiles" data-row="5" data-col="1">
+              <span class="lbl lbl-num">SCROLL</span>
+              <span class="lbl lbl-num">PROFILES</span>
+            </button>
+            <button type="button" class="key key-digit" data-action="num" data-val="0" data-row="5" data-col="2"><span class="lbl lbl-big">0</span></button>
+            <button type="button" class="key key-num-fn" data-action="blank" data-row="5" data-col="3">
+              <span class="lbl lbl-num">BLANK</span>
+            </button>
+            <div class="num-blank" data-row="5" data-col="4" aria-hidden="true"></div>
+            <button type="button" class="key key-score-guest" data-action="score" data-team="guest" data-row="5" data-col="5">
+              <span class="lbl lbl-score">GUEST</span>
+              <span class="lbl lbl-score">SCORE</span>
+            </button>
 
-          <button type="button" class="key key-ctrl" data-action="lamp-test">
-            <span class="key-cap">LAMP</span>
-            <span class="key-sub">TEST</span>
-          </button>
-          <button type="button" class="key key-num" data-action="num" data-val="0"><span class="key-cap">0</span></button>
-          <button type="button" class="key key-ctrl" data-action="back">
-            <span class="key-cap">&larr;</span>
-            <span class="key-sub">BACK</span>
-          </button>
-          <button type="button" class="key key-enter" data-action="enter">
-            <span class="key-cap">ENTER</span>
-          </button>
+            <div class="num-note">Press <b>OPTIONS</b> to change Team Names and system preferences.</div>
+          </div>
+
         </div>
 
         <div class="ctrl-footer">
@@ -318,15 +381,18 @@
     <section class="help">
       <div class="help-title">Operation Guide</div>
       <div class="help-grid">
-        <div><b>SPACE</b> &mdash; toggle SET / RUN</div>
-        <div><b>H</b> &mdash; manual horn (hold)</div>
-        <div><b>RUN</b> &mdash; SCORE / SHOTS / TOL buttons increment (decrement in SET)</div>
-        <div><b>SET</b> &mdash; SCORE / SHOTS / TOL / PERIOD buttons begin numeric entry (type digits, ENTER)</div>
-        <div><b>CLOCK SET</b> &mdash; type MMSS or MSS, ENTER (clock must be stopped)</div>
-        <div><b>PENALTY</b> &mdash; type player (1-2 digits) ENTER, then duration MMSS or MSS, ENTER</div>
-        <div><b>AUTO HORN</b> &mdash; toggles automatic horn when clock reaches 0</div>
-        <div><b>LAMP TEST</b> &mdash; lights all segments for 3 seconds</div>
-        <div><b>RESET</b> &mdash; press while in SET mode to reset the game</div>
+        <div><b>SET</b> &mdash; arm a correction; then press the field key (TIME, PERIOD, HOME SCORE, GUEST SCORE, GOAL SHOTS, GOAL SAVES) and enter digits + ENTER</div>
+        <div><b>TIME ON / TIME OFF</b> &mdash; start / stop the game clock</div>
+        <div><b>NEW MINOR / NEW MAJOR</b> &mdash; enqueue 2:00 / 5:00 penalty; type player # + ENTER</div>
+        <div><b>INSERT PENALTY</b> &mdash; press a team key (HOME / GUESTS), then player # ENTER, then MMSS / MSS ENTER</div>
+        <div><b>PENALTY ON / OFF</b> &mdash; pause / resume penalty countdown</div>
+        <div><b>CLEAR PENALTY</b> &mdash; press a team key, then 1 or 2 to clear that slot</div>
+        <div><b>HOME SCORE / GUEST SCORE</b> &mdash; +1 goal (lights GOAL light); in SET, type digits + ENTER</div>
+        <div><b>GOAL SHOTS / GOAL SAVES</b> &mdash; +1 stat; in SET, enter exact value</div>
+        <div><b>PERIOD</b> &mdash; +1 period (resets clock); in SET, enter exact value</div>
+        <div><b>HORN (H)</b> &mdash; manual horn while held</div>
+        <div><b>OPTIONS / BLANK / SCROLL PROFILES / TIME OF DAY</b> &mdash; stub indicators</div>
+        <div><b>YES / NO</b> &mdash; respond to confirm prompts</div>
       </div>
     </section>
   </div>
