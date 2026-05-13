@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nevco 4770 Hockey Scoreboard Emulator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@500;700;900&family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/dseg@0.46.0/css/dseg.min.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <!-- ============== SCOREBOARD ============== -->
+    <section class="scoreboard" aria-label="Nevco 4770 scoreboard">
+      <div class="sb-frame">
+        <div class="sb-brand">NEVCO &middot; 4770 HOCKEY</div>
+
+        <div class="sb-main">
+          <!-- Home column -->
+          <div class="sb-col sb-col-home">
+            <div class="sb-label">HOME</div>
+            <div class="sb-display sb-display-score">
+              <div class="seg seg-2" data-target="home-score">
+                <span class="seg-bg">88</span>
+                <span class="seg-fg" id="home-score">00</span>
+              </div>
+            </div>
+            <div class="sb-sub">
+              <div class="sb-mini">
+                <div class="sb-mini-label">SHOTS</div>
+                <div class="seg seg-2">
+                  <span class="seg-bg">88</span>
+                  <span class="seg-fg" id="home-shots">00</span>
+                </div>
+              </div>
+              <div class="sb-mini">
+                <div class="sb-mini-label">T.O.L.</div>
+                <div class="seg seg-1">
+                  <span class="seg-bg">8</span>
+                  <span class="seg-fg" id="home-tol">1</span>
+                </div>
+              </div>
+            </div>
+            <div class="sb-pen-group" aria-label="home penalties">
+              <div class="sb-pen-title">PENALTIES</div>
+              <div class="sb-pen-row">
+                <div class="sb-pen-cell">
+                  <div class="sb-mini-label">PLAYER</div>
+                  <div class="seg seg-2">
+                    <span class="seg-bg">88</span>
+                    <span class="seg-fg" id="home-pen1-player">--</span>
+                  </div>
+                </div>
+                <div class="sb-pen-cell">
+                  <div class="sb-mini-label">TIME</div>
+                  <div class="seg seg-4">
+                    <span class="seg-bg">88:88</span>
+                    <span class="seg-fg" id="home-pen1-time">00:00</span>
+                  </div>
+                </div>
+              </div>
+              <div class="sb-pen-row">
+                <div class="sb-pen-cell">
+                  <div class="sb-mini-label">PLAYER</div>
+                  <div class="seg seg-2">
+                    <span class="seg-bg">88</span>
+                    <span class="seg-fg" id="home-pen2-player">--</span>
+                  </div>
+                </div>
+                <div class="sb-pen-cell">
+                  <div class="sb-mini-label">TIME</div>
+                  <div class="seg seg-4">
+                    <span class="seg-bg">88:88</span>
+                    <span class="seg-fg" id="home-pen2-time">00:00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Center column -->
+          <div class="sb-col sb-col-center">
+            <div class="sb-label">PERIOD</div>
+            <div class="sb-display sb-display-period">
+              <div class="seg seg-1">
+                <span class="seg-bg">8</span>
+                <span class="seg-fg" id="period">1</span>
+              </div>
+            </div>
+            <div class="sb-label sb-label-time">TIME</div>
+            <div class="sb-display sb-display-time">
+              <div class="seg seg-clock">
+                <span class="seg-bg" id="time-bg">88:88</span>
+                <span class="seg-fg" id="time">20:00</span>
+              </div>
+            </div>
+            <div class="sb-horn-indicator">
+              <span class="horn-dot" id="horn-indicator"></span>
+              <span class="horn-text">HORN</span>
+            </div>
+          </div>
+
+          <!-- Guest column -->
+          <div class="sb-col sb-col-guest">
+            <div class="sb-label">GUEST</div>
+            <div class="sb-display sb-display-score">
+              <div class="seg seg-2">
+                <span class="seg-bg">88</span>
+                <span class="seg-fg" id="guest-score">00</span>
+              </div>
+            </div>
+            <div class="sb-sub">
+              <div class="sb-mini">
+                <div class="sb-mini-label">SHOTS</div>
+                <div class="seg seg-2">
+                  <span class="seg-bg">88</span>
+                  <span class="seg-fg" id="guest-shots">00</span>
+                </div>
+              </div>
+              <div class="sb-mini">
+                <div class="sb-mini-label">T.O.L.</div>
+                <div class="seg seg-1">
+                  <span class="seg-bg">8</span>
+                  <span class="seg-fg" id="guest-tol">1</span>
+                </div>
+              </div>
+            </div>
+            <div class="sb-pen-group" aria-label="guest penalties">
+              <div class="sb-pen-title">PENALTIES</div>
+              <div class="sb-pen-row">
+                <div class="sb-pen-cell">
+                  <div class="sb-mini-label">PLAYER</div>
+                  <div class="seg seg-2">
+                    <span class="seg-bg">88</span>
+                    <span class="seg-fg" id="guest-pen1-player">--</span>
+                  </div>
+                </div>
+                <div class="sb-pen-cell">
+                  <div class="sb-mini-label">TIME</div>
+                  <div class="seg seg-4">
+                    <span class="seg-bg">88:88</span>
+                    <span class="seg-fg" id="guest-pen1-time">00:00</span>
+                  </div>
+                </div>
+              </div>
+              <div class="sb-pen-row">
+                <div class="sb-pen-cell">
+                  <div class="sb-mini-label">PLAYER</div>
+                  <div class="seg seg-2">
+                    <span class="seg-bg">88</span>
+                    <span class="seg-fg" id="guest-pen2-player">--</span>
+                  </div>
+                </div>
+                <div class="sb-pen-cell">
+                  <div class="sb-mini-label">TIME</div>
+                  <div class="seg seg-4">
+                    <span class="seg-bg">88:88</span>
+                    <span class="seg-fg" id="guest-pen2-time">00:00</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============== CONTROLLER ============== -->
+    <section class="controller" aria-label="MPCW-7 hand controller">
+      <div class="ctrl-body">
+        <div class="ctrl-screws">
+          <span class="screw screw-tl"></span>
+          <span class="screw screw-tr"></span>
+          <span class="screw screw-bl"></span>
+          <span class="screw screw-br"></span>
+        </div>
+
+        <div class="ctrl-header">
+          <div class="ctrl-brand">
+            <div class="ctrl-brand-name">NEVCO</div>
+            <div class="ctrl-brand-model">MPCW-7 HOCKEY</div>
+          </div>
+          <div class="ctrl-power" title="Power LED">
+            <span class="power-led on"></span>
+            <span class="power-label">PWR</span>
+          </div>
+        </div>
+
+        <!-- LED display section -->
+        <div class="ctrl-led-section">
+          <div class="ctrl-led-label">CONTROLLER DISPLAY</div>
+          <div class="ctrl-led-window">
+            <span class="ctrl-led-bg">~~~~~~~~~~~~</span>
+            <span class="ctrl-led-text" id="led-text">READY</span>
+          </div>
+          <div class="ctrl-led-hint" id="led-hint">Toggle DOWN &middot; RUN mode</div>
+        </div>
+
+        <!-- Toggle switch -->
+        <div class="ctrl-toggle-section">
+          <div class="ctrl-toggle-frame">
+            <div class="ctrl-toggle-label-top">SET</div>
+            <div class="ctrl-toggle">
+              <button id="toggle-switch" class="toggle-lever" aria-label="Toggle switch (Space)">
+                <span class="lever-knob"></span>
+              </button>
+            </div>
+            <div class="ctrl-toggle-label-bot">RUN</div>
+          </div>
+          <div class="ctrl-toggle-hint">SPACE</div>
+        </div>
+
+        <!-- Keypad -->
+        <div class="keypad">
+
+          <!-- Row 1: time/period/horn -->
+          <button type="button" class="key key-fn" data-action="clock-toggle">
+            <span class="key-cap">CLOCK</span>
+            <span class="key-sub">START / STOP</span>
+          </button>
+          <button type="button" class="key key-fn" data-action="clock-set">
+            <span class="key-cap">CLOCK</span>
+            <span class="key-sub">SET</span>
+          </button>
+          <button type="button" class="key key-fn" data-action="period">
+            <span class="key-cap">PERIOD</span>
+            <span class="key-sub">+1 / SET</span>
+          </button>
+          <button type="button" class="key key-horn" data-action="horn" id="horn-button">
+            <span class="key-cap">HORN</span>
+            <span class="key-sub">H</span>
+          </button>
+
+          <!-- Row 2: home/guest scores + penalties -->
+          <button type="button" class="key key-home" data-action="home-score">
+            <span class="key-cap">HOME</span>
+            <span class="key-sub">SCORE</span>
+          </button>
+          <button type="button" class="key key-home" data-action="home-penalty">
+            <span class="key-cap">HOME</span>
+            <span class="key-sub">PENALTY</span>
+          </button>
+          <button type="button" class="key key-guest" data-action="guest-penalty">
+            <span class="key-cap">GUEST</span>
+            <span class="key-sub">PENALTY</span>
+          </button>
+          <button type="button" class="key key-guest" data-action="guest-score">
+            <span class="key-cap">GUEST</span>
+            <span class="key-sub">SCORE</span>
+          </button>
+
+          <!-- Row 3: shots + TOL -->
+          <button type="button" class="key key-fn" data-action="home-shots">
+            <span class="key-cap">HOME</span>
+            <span class="key-sub">SHOTS</span>
+          </button>
+          <button type="button" class="key key-fn" data-action="home-tol">
+            <span class="key-cap">HOME</span>
+            <span class="key-sub">T.O.L.</span>
+          </button>
+          <button type="button" class="key key-fn" data-action="guest-tol">
+            <span class="key-cap">GUEST</span>
+            <span class="key-sub">T.O.L.</span>
+          </button>
+          <button type="button" class="key key-fn" data-action="guest-shots">
+            <span class="key-cap">GUEST</span>
+            <span class="key-sub">SHOTS</span>
+          </button>
+
+          <!-- Row 4-7: numeric -->
+          <button type="button" class="key key-num" data-action="num" data-val="1"><span class="key-cap">1</span></button>
+          <button type="button" class="key key-num" data-action="num" data-val="2"><span class="key-cap">2</span></button>
+          <button type="button" class="key key-num" data-action="num" data-val="3"><span class="key-cap">3</span></button>
+          <button type="button" class="key key-ctrl" data-action="clear">
+            <span class="key-cap">CLR</span>
+            <span class="key-sub">CANCEL</span>
+          </button>
+
+          <button type="button" class="key key-num" data-action="num" data-val="4"><span class="key-cap">4</span></button>
+          <button type="button" class="key key-num" data-action="num" data-val="5"><span class="key-cap">5</span></button>
+          <button type="button" class="key key-num" data-action="num" data-val="6"><span class="key-cap">6</span></button>
+          <button type="button" class="key key-ctrl" data-action="reset">
+            <span class="key-cap">RESET</span>
+            <span class="key-sub">GAME</span>
+          </button>
+
+          <button type="button" class="key key-num" data-action="num" data-val="7"><span class="key-cap">7</span></button>
+          <button type="button" class="key key-num" data-action="num" data-val="8"><span class="key-cap">8</span></button>
+          <button type="button" class="key key-num" data-action="num" data-val="9"><span class="key-cap">9</span></button>
+          <button type="button" class="key key-ctrl" data-action="auto-horn">
+            <span class="key-cap">AUTO</span>
+            <span class="key-sub">HORN</span>
+          </button>
+
+          <button type="button" class="key key-ctrl" data-action="lamp-test">
+            <span class="key-cap">LAMP</span>
+            <span class="key-sub">TEST</span>
+          </button>
+          <button type="button" class="key key-num" data-action="num" data-val="0"><span class="key-cap">0</span></button>
+          <button type="button" class="key key-ctrl" data-action="back">
+            <span class="key-cap">&larr;</span>
+            <span class="key-sub">BACK</span>
+          </button>
+          <button type="button" class="key key-enter" data-action="enter">
+            <span class="key-cap">ENTER</span>
+          </button>
+        </div>
+
+        <div class="ctrl-footer">
+          <div class="ctrl-cable"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Helper guide -->
+    <section class="help">
+      <div class="help-title">Operation Guide</div>
+      <div class="help-grid">
+        <div><b>SPACE</b> &mdash; toggle SET / RUN</div>
+        <div><b>H</b> &mdash; manual horn (hold)</div>
+        <div><b>RUN</b> &mdash; SCORE / SHOTS / TOL buttons increment (decrement in SET)</div>
+        <div><b>SET</b> &mdash; SCORE / SHOTS / TOL / PERIOD buttons begin numeric entry (type digits, ENTER)</div>
+        <div><b>CLOCK SET</b> &mdash; type MMSS or MSS, ENTER (clock must be stopped)</div>
+        <div><b>PENALTY</b> &mdash; type player (1-2 digits) ENTER, then duration MMSS or MSS, ENTER</div>
+        <div><b>AUTO HORN</b> &mdash; toggles automatic horn when clock reaches 0</div>
+        <div><b>LAMP TEST</b> &mdash; lights all segments for 3 seconds</div>
+        <div><b>RESET</b> &mdash; press while in SET mode to reset the game</div>
+      </div>
+    </section>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
