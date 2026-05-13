@@ -99,8 +99,8 @@
     hornInd:    $('horn-indicator'),
     goalLight:  $('goal-light'),
     led:        $('led-text'),
-    ledHint:    $('led-hint'),
-    setLed:     $('set-led'),
+    status:     $('ctrl-status'),
+    statusText: $('status-text'),
     setBtn:     $('set-button'),
     hornButton: $('horn-button'),
     homePen: [
@@ -265,28 +265,37 @@
   }
 
   function renderController() {
-    // SET LED
-    els.setLed.classList.toggle('on', state.setMode);
-    els.setBtn.classList.toggle('armed', state.setMode && !state.entry);
-
-    // Mode hint
-    let hint;
-    if (state.entry) {
-      hint = entryHint(state.entry);
-    } else if (state.setMode) {
-      hint = 'SET MODE · press a field to edit';
-    } else if (state.penaltyPaused) {
-      hint = 'PENALTY OFF · countdown paused';
-    } else {
-      hint = state.clockRunning ? 'RUN' : 'READY';
+    // Light up the SET hotspot when armed
+    if (els.setBtn) {
+      els.setBtn.classList.toggle('armed', state.setMode && !state.entry);
     }
-    els.ledHint.textContent = hint;
+
+    // Status pill next to the LED window
+    let status;
+    let setMode = false;
+    if (state.entry) {
+      status = entryHint(state.entry);
+      setMode = state.setMode;
+    } else if (state.setMode) {
+      status = 'SET MODE - press a field key';
+      setMode = true;
+    } else if (state.penaltyPaused && state.clockRunning) {
+      status = 'PENALTY OFF - countdown paused';
+    } else if (state.clockRunning) {
+      status = 'CLOCK RUNNING';
+    } else if (state.blanked) {
+      status = 'SCOREBOARD BLANKED';
+    } else {
+      status = 'READY';
+    }
+    if (els.status) els.status.classList.toggle('set-mode', setMode);
+    if (els.statusText) els.statusText.textContent = status;
 
     // LED text
     els.led.textContent = ledText();
 
-    // Highlight armed dedicated key
-    document.querySelectorAll('.key.armed').forEach(k => {
+    // Highlight armed dedicated hotspot
+    document.querySelectorAll('.hot.armed').forEach(k => {
       if (k !== els.setBtn) k.classList.remove('armed');
     });
     if (state.entry) {
@@ -787,7 +796,7 @@
   // ---------------------------------------------------------------
 
   function bindKeypad() {
-    document.querySelectorAll('.key').forEach(btn => {
+    document.querySelectorAll('.hot').forEach(btn => {
       const action = btn.dataset.action;
       if (!action) return;
 
