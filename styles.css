@@ -1,0 +1,357 @@
+/* ====================================================================
+   Nevco hockey scoreboard emulator — styles
+   Scoreboard models the Nevco 4760 (single horizontal strip).
+   Controller uses nevco_mpcw7_hockey.png as the background, with
+   black hotspot keys overlaid on each physical button.
+   ==================================================================== */
+
+* { box-sizing: border-box; }
+
+:root {
+  --sb-board:        #18345e;
+  --sb-board-edge:   #0a1830;
+  --sb-window-bg:    #02060d;
+  --sb-window-edge:  #0a1426;
+
+  --led-amber-on:    #ff8a20;
+  --led-amber-glow:  rgba(255, 138, 32, 0.7);
+  --led-amber-off:   rgba(255, 138, 32, 0.10);
+
+  --led-red-on:      #ff3a1a;
+  --led-red-glow:    rgba(255, 58, 26, 0.7);
+  --led-red-off:     rgba(255, 58, 26, 0.10);
+
+  --led-window-bg:   #15090a;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: radial-gradient(ellipse at center, #2a2a30 0%, #0d0d12 70%, #050508 100%);
+  min-height: 100vh;
+  color: #ddd;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+.app {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  /* Uniform 80% scale of the scoreboard, controller display, and keypad so
+     the whole emulator fits on a typical screen without scrolling. zoom is
+     used (not transform: scale) because it also shrinks the layout box. */
+  zoom: 0.8;
+}
+
+/* ==================== SCOREBOARD (Nevco 4760) ==================== */
+
+.scoreboard { display: flex; justify-content: center; }
+
+.sb-board {
+  width: 100%;
+  max-width: 1280px;
+  background:
+    radial-gradient(ellipse at top, #1f4378 0%, var(--sb-board) 55%, #0e2349 100%);
+  border: 3px solid var(--sb-board-edge);
+  border-radius: 4px;
+  padding: 10px 16px;
+  box-shadow:
+    inset 0 0 60px rgba(0, 0, 0, 0.45),
+    0 8px 24px rgba(0, 0, 0, 0.55);
+  display: grid;
+  grid-template-columns: auto auto 1fr auto auto;
+  align-items: center;
+  gap: 14px;
+}
+
+/* ---- Digit windows (shared by amber & red variants) ---- */
+
+.seg {
+  position: relative;
+  display: inline-block;
+  font-family: 'DSEG7 Classic', 'DSEG7Classic', 'Share Tech Mono', monospace;
+  font-weight: 700;
+  line-height: 1;
+  background: var(--sb-window-bg);
+  border: 1px solid var(--sb-window-edge);
+  border-radius: 3px;
+  padding: 4px 6px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.95);
+}
+
+.seg-amber {
+  --led-on:   var(--led-amber-on);
+  --led-glow: var(--led-amber-glow);
+  --led-off:  var(--led-amber-off);
+}
+.seg-red {
+  --led-on:   var(--led-red-on);
+  --led-glow: var(--led-red-glow);
+  --led-off:  var(--led-red-off);
+}
+
+.seg-bg { display: inline-block; color: var(--led-off); }
+.seg-fg {
+  position: absolute;
+  inset: 0;
+  padding: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--led-on);
+  text-shadow:
+    0 0 4px var(--led-glow),
+    0 0 12px var(--led-glow),
+    0 0 22px var(--led-glow);
+}
+
+/* Size hierarchy modelled on the 4760 reference: clock dominates, then
+   score (~80% of clock), player & penalty time (~55-60%), period (~50%),
+   shots (~40%). */
+.seg-1     { font-size: 46px; min-width: 0.7em; }   /* player # default */
+.seg-2     { font-size: 46px; min-width: 1.4em; }   /* player # default */
+.seg-4     { font-size: 40px; min-width: 2.6em; }   /* penalty time */
+.seg-clock { font-size: 84px; min-width: 2.9em; }   /* main clock */
+.seg-score { font-size: 68px; }                     /* home / guests score */
+.seg-shot  { font-size: 34px; }                     /* shots on goal digits */
+.sb-period-row .seg-1 { font-size: 42px; }          /* period (slightly smaller than player) */
+
+/* ---- Label plaques ("player", "penalty", "Home", "period", etc.) ---- */
+
+.sb-tag {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  color: #f3f3f3;
+  background: #050505;
+  border: 1px solid #1a1a1a;
+  padding: 2px 10px;
+  border-radius: 2px;
+  text-align: center;
+  white-space: nowrap;
+  align-self: center;
+}
+.sb-tag-team { font-size: 15px; font-weight: 600; }
+.sb-tag-shots { font-size: 12px; padding: 1px 8px; margin-top: 4px; }
+
+/* ---- Cells & rows ---- */
+
+.sb-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.sb-score-cell {
+  align-items: center;
+  min-width: 110px;
+}
+
+.sb-pens {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sb-pen-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+}
+
+/* ---- Center column (clock, brand mark, period & shots row) ---- */
+
+.sb-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+}
+
+.sb-brand-mark {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.35em;
+  text-transform: lowercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: 2px;
+}
+
+.sb-center-bottom {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  margin-top: 6px;
+}
+
+.sb-period-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.sb-period-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ==================== CONTROLLER (photo + hotspots) ==================== */
+
+.controller {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.ctrl-photo {
+  position: relative;
+  width: 100%;
+  max-width: 1100px;
+  aspect-ratio: 2997 / 1498;
+  background-image: url('nevco_mpcw7_hockey.png');
+  background-size: 100% 100%;
+  background-position: center;
+  background-repeat: no-repeat;
+  border-radius: 18px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.6), 0 4px 0 rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+}
+
+/* ---- Controller display panel (separate from the photo) ----
+   Single 16-character red 14-segment LED window, horizontally centered. */
+
+.ctrl-display {
+  width: 100%;
+  max-width: 1100px;
+  display: flex;
+  justify-content: center;
+  padding: 10px 16px;
+  background: linear-gradient(180deg, #1c1c1f 0%, #0e0e10 100%);
+  border: 1px solid #2a2a2e;
+  border-radius: 12px;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.04),
+    0 6px 18px rgba(0, 0, 0, 0.45);
+}
+
+.led-window {
+  position: relative;
+  height: 56px;
+  padding: 6px 16px;
+  background: var(--led-window-bg);
+  border: 1px solid #1a0a08;
+  border-radius: 6px;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 0, 0, 0.9),
+    inset 0 0 0 1px #2a1810;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* The 16-character ghost is in normal flow so it sets the window width.
+   The active foreground text overlays it with absolute positioning. */
+.led-bg,
+.led-fg {
+  font-family: 'DSEG14 Classic Mini', 'DSEG14ClassicMini', 'Share Tech Mono', monospace;
+  font-size: 26px;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.led-bg {
+  color: var(--led-red-off);
+}
+
+.led-fg {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: inherit;
+  color: var(--led-red-on);
+  text-shadow:
+    0 0 4px var(--led-red-glow),
+    0 0 10px var(--led-red-glow),
+    0 0 22px var(--led-red-glow);
+}
+
+/* ---- Click hotspots ---- */
+/* Each .hot is positioned absolutely from hockey_keypad_coordinates.csv:
+   left/top/width/height come in as inline % so the buttons scale with the
+   photo. The .ctrl-buttons layer just provides a positioning context. The
+   keys are rendered as opaque black 3D caps that depress on click. */
+
+.ctrl-buttons {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hot {
+  all: unset;
+  position: absolute;
+  box-sizing: border-box;
+
+  background: linear-gradient(180deg, #2c2c2c 0%, #060606 100%);
+  border: 1px solid #000;
+  border-radius: 4px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -2px 2px rgba(0, 0, 0, 0.6),
+    0 2px 3px rgba(0, 0, 0, 0.75);
+
+  pointer-events: auto;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 60ms ease-out, box-shadow 60ms ease-out;
+}
+
+.hot:active,
+.hot.pressed {
+  transform: translateY(1px);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.95),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+    0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+/* ==================== RESPONSIVE ==================== */
+
+@media (max-width: 1000px) {
+  .seg-1     { font-size: 36px; }
+  .seg-2     { font-size: 36px; }
+  .seg-4     { font-size: 30px; }
+  .seg-clock { font-size: 62px; }
+  .seg-score { font-size: 50px; }
+  .seg-shot  { font-size: 26px; }
+  .sb-period-row .seg-1 { font-size: 32px; }
+  .sb-board  { gap: 8px; padding: 8px 10px; }
+  .sb-tag    { font-size: 11px; padding: 1px 6px; }
+}
+
+@media (max-width: 680px) {
+  .seg-1     { font-size: 26px; }
+  .seg-2     { font-size: 26px; }
+  .seg-4     { font-size: 20px; }
+  .seg-clock { font-size: 42px; }
+  .seg-score { font-size: 34px; }
+  .seg-shot  { font-size: 18px; }
+  .sb-period-row .seg-1 { font-size: 22px; }
+  .sb-board  { gap: 6px; padding: 6px 8px; }
+  .sb-tag    { font-size: 10px; padding: 1px 4px; }
+}
