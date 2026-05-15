@@ -108,11 +108,8 @@ html, body {
   align-items: center;
   justify-content: flex-end;
   color: var(--led-on);
-  /* Subtle glow that scales with the digit (em units) - dialled down to
-     keep it readable instead of bloomed on small / large displays alike. */
-  text-shadow:
-    0 0 0.03em var(--led-glow),
-    0 0 0.09em var(--led-glow);
+  /* No text-shadow: a saturated LED colour against the black window reads
+     as an LED on its own; any blur smears the segments on real screens. */
 }
 
 /* Size hierarchy modelled on the 4760 reference: clock dominates, then
