@@ -1,19 +1,27 @@
 /* ====================================================================
-   Nevco 4770 Hockey Scoreboard Emulator — styles
+   Nevco hockey scoreboard emulator — styles
+   Scoreboard models the Nevco 4760 (single horizontal strip).
    Controller uses nevco_mpcw7_hockey.png as the background, with
-   transparent click hotspots overlaid on each physical key.
+   black hotspot keys overlaid on each physical button.
    ==================================================================== */
 
 * { box-sizing: border-box; }
 
 :root {
-  --sb-bg: #0a0a0a;
-  --sb-frame: #1a1a1a;
-  --sb-label: #f4f0d8;
-  --sb-led: #ff4a00;
-  --sb-led-glow: #ff7733;
-  --sb-led-off: rgba(255, 74, 0, 0.08);
-  --led-window-bg: #15090a;
+  --sb-board:        #6b2222;
+  --sb-board-edge:   #2a0a0a;
+  --sb-window-bg:    #050000;
+  --sb-window-edge:  #1a0808;
+
+  --led-amber-on:    #ff8a20;
+  --led-amber-glow:  rgba(255, 138, 32, 0.7);
+  --led-amber-off:   rgba(255, 138, 32, 0.10);
+
+  --led-red-on:      #ff3a1a;
+  --led-red-glow:    rgba(255, 58, 26, 0.7);
+  --led-red-off:     rgba(255, 58, 26, 0.10);
+
+  --led-window-bg:   #15090a;
 }
 
 html, body {
@@ -36,138 +44,157 @@ html, body {
   gap: 26px;
 }
 
-/* ==================== SCOREBOARD ==================== */
+/* ==================== SCOREBOARD (Nevco 4760) ==================== */
 
 .scoreboard { display: flex; justify-content: center; }
 
-.sb-frame {
-  background: linear-gradient(180deg, #161616 0%, #0a0a0a 100%);
-  border: 4px solid #2a2a2a;
-  border-radius: 14px;
-  padding: 18px 22px 22px;
+.sb-board {
   width: 100%;
-  max-width: 1100px;
+  max-width: 1280px;
+  background:
+    radial-gradient(ellipse at top, #7a2a2a 0%, var(--sb-board) 55%, #561818 100%);
+  border: 3px solid var(--sb-board-edge);
+  border-radius: 4px;
+  padding: 14px 20px;
   box-shadow:
-    inset 0 0 60px rgba(0, 0, 0, 0.9),
-    0 8px 30px rgba(0, 0, 0, 0.6),
-    0 0 0 2px #0a0a0a,
-    0 0 0 6px #1f1f1f;
-  position: relative;
-}
-
-.sb-frame::before {
-  content: "";
-  position: absolute;
-  inset: 8px;
-  background-image: radial-gradient(rgba(255,255,255,0.025) 1px, transparent 1.5px);
-  background-size: 8px 8px;
-  pointer-events: none;
-  border-radius: 8px;
-}
-
-.sb-brand {
-  text-align: center;
-  font-family: 'Orbitron', sans-serif;
-  letter-spacing: 0.32em;
-  font-weight: 700;
-  font-size: 14px;
-  color: #d4b07a;
-  margin-bottom: 12px;
-  text-shadow: 0 0 6px rgba(212, 176, 122, 0.4);
-}
-
-.sb-main {
+    inset 0 0 60px rgba(0, 0, 0, 0.45),
+    0 8px 24px rgba(0, 0, 0, 0.55);
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: auto auto 1fr auto auto;
+  align-items: center;
   gap: 18px;
-  align-items: start;
 }
-.sb-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.sb-label {
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 700;
-  color: var(--sb-label);
-  letter-spacing: 0.18em;
-  font-size: 15px;
-  text-shadow: 0 0 4px rgba(244, 240, 216, 0.25);
-}
-.sb-label-time { margin-top: 8px; }
 
-.sb-display {
-  background: #050505;
-  border: 2px solid #2a2a2a;
-  border-radius: 8px;
-  padding: 10px 18px;
-  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.9), inset 0 0 0 1px #1a1a1a;
-}
-.sb-display-score  { padding: 14px 26px; }
-.sb-display-period { padding: 10px 22px; }
-.sb-display-time   { padding: 14px 22px; }
+/* ---- Digit windows (shared by amber & red variants) ---- */
 
 .seg {
   position: relative;
   display: inline-block;
   font-family: 'DSEG7 Classic', 'DSEG7Classic', 'Share Tech Mono', monospace;
+  font-weight: 700;
   line-height: 1;
+  background: var(--sb-window-bg);
+  border: 1px solid var(--sb-window-edge);
+  border-radius: 3px;
+  padding: 5px 8px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.95);
 }
-.seg-bg { display: inline-block; color: var(--sb-led-off); }
+
+.seg-amber {
+  --led-on:   var(--led-amber-on);
+  --led-glow: var(--led-amber-glow);
+  --led-off:  var(--led-amber-off);
+}
+.seg-red {
+  --led-on:   var(--led-red-on);
+  --led-glow: var(--led-red-glow);
+  --led-off:  var(--led-red-off);
+}
+
+.seg-bg { display: inline-block; color: var(--led-off); }
 .seg-fg {
-  position: absolute; inset: 0;
-  display: flex; align-items: center; justify-content: flex-end;
-  color: var(--sb-led);
-  text-shadow: 0 0 4px var(--sb-led-glow), 0 0 10px rgba(255, 74, 0, 0.6), 0 0 22px rgba(255, 74, 0, 0.35);
-}
-.seg-1 { font-size: 56px; min-width: 0.7em; }
-.seg-2 { font-size: 64px; min-width: 1.4em; }
-.seg-4 { font-size: 32px; min-width: 2.5em; }
-.seg-clock { font-size: 72px; min-width: 2.9em; }
-
-.sb-sub { display: flex; gap: 14px; margin-top: 4px; align-items: end; }
-.sb-mini { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.sb-mini-label {
-  font-family: 'Orbitron', sans-serif;
-  font-weight: 600; color: var(--sb-label);
-  letter-spacing: 0.12em; font-size: 10px; opacity: 0.85;
-}
-.sb-mini .seg-2 { font-size: 32px; }
-.sb-mini .seg-1 { font-size: 30px; }
-.sb-mini .seg-2, .sb-mini .seg-1 {
-  background: #050505; border: 1px solid #2a2a2a; border-radius: 4px; padding: 4px 8px;
+  position: absolute;
+  inset: 0;
+  padding: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  color: var(--led-on);
+  text-shadow:
+    0 0 4px var(--led-glow),
+    0 0 12px var(--led-glow),
+    0 0 22px var(--led-glow);
 }
 
-.sb-pen-group { margin-top: 6px; display: flex; flex-direction: column; gap: 6px; align-items: center; width: 100%; }
-.sb-pen-title {
-  font-family: 'Orbitron', sans-serif; font-weight: 600;
-  color: var(--sb-label); letter-spacing: 0.18em;
-  font-size: 11px; opacity: 0.85;
+.seg-1     { font-size: 42px; min-width: 0.7em; }
+.seg-2     { font-size: 42px; min-width: 1.4em; }
+.seg-4     { font-size: 28px; min-width: 2.6em; }
+.seg-clock { font-size: 64px; min-width: 2.9em; }
+.seg-score { font-size: 60px; }   /* Home / Guests score digits */
+.seg-shot  { font-size: 30px; }   /* Home / Guest shots digits */
+
+/* ---- Label plaques ("player", "penalty", "Home", "period", etc.) ---- */
+
+.sb-tag {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  letter-spacing: 0.01em;
+  color: #f3f3f3;
+  background: #050505;
+  border: 1px solid #1a1a1a;
+  padding: 2px 10px;
+  border-radius: 2px;
+  text-align: center;
+  white-space: nowrap;
+  align-self: center;
 }
+.sb-tag-team { font-size: 15px; font-weight: 600; }
+.sb-tag-shots { font-size: 12px; padding: 1px 8px; margin-top: 4px; }
+
+/* ---- Cells & rows ---- */
+
+.sb-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+}
+
+.sb-score-cell {
+  align-items: center;
+  min-width: 110px;
+}
+
+.sb-pens {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
 .sb-pen-row {
-  display: flex; gap: 10px;
-  background: #050505; border: 1px solid #2a2a2a; border-radius: 6px; padding: 6px 10px;
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
 }
-.sb-pen-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; }
-.sb-pen-cell .seg-2, .sb-pen-cell .seg-4 { background: transparent; border: none; padding: 0; }
 
-.sb-indicators { margin-top: 10px; display: flex; gap: 22px; }
-.sb-ind {
-  display: flex; align-items: center; gap: 8px;
-  font-family: 'Orbitron', sans-serif; font-size: 12px;
-  letter-spacing: 0.2em; color: var(--sb-label);
+/* ---- Center column (clock, brand mark, period & shots row) ---- */
+
+.sb-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
 }
-.ind-dot {
-  width: 16px; height: 16px; border-radius: 50%;
-  background: #401a08; border: 1px solid #2a1208;
-  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.8);
-  transition: all 60ms;
+
+.sb-brand-mark {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 10px;
+  letter-spacing: 0.35em;
+  text-transform: lowercase;
+  color: rgba(255, 255, 255, 0.45);
+  margin-top: 2px;
 }
-.ind-dot.on {
-  background: var(--sb-led);
-  box-shadow: 0 0 12px var(--sb-led-glow), 0 0 30px rgba(255, 74, 0, 0.6), inset 0 0 4px #fff5e0;
+
+.sb-center-bottom {
+  display: flex;
+  align-items: flex-end;
+  gap: 18px;
+  margin-top: 6px;
 }
-.ind-goal { background: #0a3008; border-color: #051c04; }
-.ind-goal.on {
-  background: #28e860;
-  box-shadow: 0 0 12px #28e860, 0 0 30px rgba(40, 232, 96, 0.6), inset 0 0 4px #f0fff0;
+
+.sb-period-stack {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+.sb-period-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 /* ==================== CONTROLLER (photo + hotspots) ==================== */
@@ -365,20 +392,24 @@ html, body {
 
 /* ==================== RESPONSIVE ==================== */
 
-@media (max-width: 760px) {
-  .seg-1  { font-size: 44px; }
-  .seg-2  { font-size: 50px; }
-  .seg-4  { font-size: 26px; }
-  .seg-clock { font-size: 56px; }
-  .sb-main { gap: 10px; }
-  .sb-mini .seg-2 { font-size: 26px; }
-  .sb-mini .seg-1 { font-size: 24px; }
+@media (max-width: 900px) {
+  .seg-1     { font-size: 34px; }
+  .seg-2     { font-size: 34px; }
+  .seg-4     { font-size: 22px; }
+  .seg-clock { font-size: 48px; }
+  .seg-score { font-size: 44px; }
+  .seg-shot  { font-size: 24px; }
+  .sb-board  { gap: 10px; padding: 10px 12px; }
+  .sb-tag    { font-size: 11px; padding: 1px 6px; }
 }
 
-@media (max-width: 540px) {
-  .seg-1  { font-size: 34px; }
-  .seg-2  { font-size: 38px; }
-  .seg-4  { font-size: 20px; }
-  .seg-clock { font-size: 42px; }
-  .sb-frame { padding: 12px 12px 16px; }
+@media (max-width: 640px) {
+  .seg-1     { font-size: 26px; }
+  .seg-2     { font-size: 26px; }
+  .seg-4     { font-size: 16px; }
+  .seg-clock { font-size: 34px; }
+  .seg-score { font-size: 32px; }
+  .seg-shot  { font-size: 18px; }
+  .sb-board  { gap: 6px; padding: 8px; }
+  .sb-tag    { font-size: 10px; padding: 1px 4px; }
 }

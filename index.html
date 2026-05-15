@@ -12,164 +12,130 @@
 </head>
 <body>
   <div class="app">
-    <!-- ============== SCOREBOARD ============== -->
-    <section class="scoreboard" aria-label="Nevco 4770 scoreboard">
-      <div class="sb-frame">
-        <div class="sb-brand">NEVCO &middot; 4770 HOCKEY</div>
+    <!-- ============== SCOREBOARD (Nevco 4760) ============== -->
+    <section class="scoreboard" aria-label="Nevco 4760 scoreboard">
+      <div class="sb-board">
 
-        <div class="sb-main">
-          <!-- Home column -->
-          <div class="sb-col sb-col-home">
-            <div class="sb-label">HOME</div>
-            <div class="sb-display sb-display-score">
-              <div class="seg seg-2">
+        <!-- Home penalties: outermost column.
+             Image layout: [player # | penalty time], two rows. -->
+        <div class="sb-pens sb-pens-home" aria-label="home penalties">
+          <div class="sb-pen-row">
+            <div class="sb-cell">
+              <div class="sb-tag">player</div>
+              <div class="seg seg-amber seg-2">
                 <span class="seg-bg">88</span>
-                <span class="seg-fg" id="home-score">00</span>
+                <span class="seg-fg" id="home-pen1-player">--</span>
               </div>
             </div>
-            <div class="sb-sub">
-              <div class="sb-mini">
-                <div class="sb-mini-label">SHOTS</div>
-                <div class="seg seg-2">
-                  <span class="seg-bg">88</span>
-                  <span class="seg-fg" id="home-shots">00</span>
-                </div>
-              </div>
-              <div class="sb-mini">
-                <div class="sb-mini-label">T.O.L.</div>
-                <div class="seg seg-1">
-                  <span class="seg-bg">8</span>
-                  <span class="seg-fg" id="home-tol">1</span>
-                </div>
-              </div>
-            </div>
-            <div class="sb-pen-group" aria-label="home penalties">
-              <div class="sb-pen-title">PENALTIES</div>
-              <div class="sb-pen-row">
-                <div class="sb-pen-cell">
-                  <div class="sb-mini-label">PLAYER</div>
-                  <div class="seg seg-2">
-                    <span class="seg-bg">88</span>
-                    <span class="seg-fg" id="home-pen1-player">--</span>
-                  </div>
-                </div>
-                <div class="sb-pen-cell">
-                  <div class="sb-mini-label">TIME</div>
-                  <div class="seg seg-4">
-                    <span class="seg-bg">88:88</span>
-                    <span class="seg-fg" id="home-pen1-time">00:00</span>
-                  </div>
-                </div>
-              </div>
-              <div class="sb-pen-row">
-                <div class="sb-pen-cell">
-                  <div class="sb-mini-label">PLAYER</div>
-                  <div class="seg seg-2">
-                    <span class="seg-bg">88</span>
-                    <span class="seg-fg" id="home-pen2-player">--</span>
-                  </div>
-                </div>
-                <div class="sb-pen-cell">
-                  <div class="sb-mini-label">TIME</div>
-                  <div class="seg seg-4">
-                    <span class="seg-bg">88:88</span>
-                    <span class="seg-fg" id="home-pen2-time">00:00</span>
-                  </div>
-                </div>
+            <div class="sb-cell">
+              <div class="sb-tag">penalty</div>
+              <div class="seg seg-red seg-4">
+                <span class="seg-bg">88:88</span>
+                <span class="seg-fg" id="home-pen1-time">0:00</span>
               </div>
             </div>
           </div>
-
-          <!-- Center column -->
-          <div class="sb-col sb-col-center">
-            <div class="sb-label">PERIOD</div>
-            <div class="sb-display sb-display-period">
-              <div class="seg seg-1">
-                <span class="seg-bg">8</span>
-                <span class="seg-fg" id="period">1</span>
-              </div>
-            </div>
-            <div class="sb-label sb-label-time">TIME</div>
-            <div class="sb-display sb-display-time">
-              <div class="seg seg-clock">
-                <span class="seg-bg" id="time-bg">88:88</span>
-                <span class="seg-fg" id="time">20:00</span>
-              </div>
-            </div>
-            <div class="sb-indicators">
-              <div class="sb-ind">
-                <span class="ind-dot" id="horn-indicator"></span>
-                <span class="ind-text">HORN</span>
-              </div>
-              <div class="sb-ind">
-                <span class="ind-dot ind-goal" id="goal-light"></span>
-                <span class="ind-text">GOAL</span>
-              </div>
-            </div>
-          </div>
-
-          <!-- Guest column -->
-          <div class="sb-col sb-col-guest">
-            <div class="sb-label">GUEST</div>
-            <div class="sb-display sb-display-score">
-              <div class="seg seg-2">
+          <div class="sb-pen-row">
+            <div class="sb-cell">
+              <div class="sb-tag">player</div>
+              <div class="seg seg-amber seg-2">
                 <span class="seg-bg">88</span>
-                <span class="seg-fg" id="guest-score">00</span>
+                <span class="seg-fg" id="home-pen2-player">--</span>
               </div>
             </div>
-            <div class="sb-sub">
-              <div class="sb-mini">
-                <div class="sb-mini-label">SHOTS</div>
-                <div class="seg seg-2">
-                  <span class="seg-bg">88</span>
-                  <span class="seg-fg" id="guest-shots">00</span>
-                </div>
-              </div>
-              <div class="sb-mini">
-                <div class="sb-mini-label">T.O.L.</div>
-                <div class="seg seg-1">
-                  <span class="seg-bg">8</span>
-                  <span class="seg-fg" id="guest-tol">1</span>
-                </div>
-              </div>
-            </div>
-            <div class="sb-pen-group" aria-label="guest penalties">
-              <div class="sb-pen-title">PENALTIES</div>
-              <div class="sb-pen-row">
-                <div class="sb-pen-cell">
-                  <div class="sb-mini-label">PLAYER</div>
-                  <div class="seg seg-2">
-                    <span class="seg-bg">88</span>
-                    <span class="seg-fg" id="guest-pen1-player">--</span>
-                  </div>
-                </div>
-                <div class="sb-pen-cell">
-                  <div class="sb-mini-label">TIME</div>
-                  <div class="seg seg-4">
-                    <span class="seg-bg">88:88</span>
-                    <span class="seg-fg" id="guest-pen1-time">00:00</span>
-                  </div>
-                </div>
-              </div>
-              <div class="sb-pen-row">
-                <div class="sb-pen-cell">
-                  <div class="sb-mini-label">PLAYER</div>
-                  <div class="seg seg-2">
-                    <span class="seg-bg">88</span>
-                    <span class="seg-fg" id="guest-pen2-player">--</span>
-                  </div>
-                </div>
-                <div class="sb-pen-cell">
-                  <div class="sb-mini-label">TIME</div>
-                  <div class="seg seg-4">
-                    <span class="seg-bg">88:88</span>
-                    <span class="seg-fg" id="guest-pen2-time">00:00</span>
-                  </div>
-                </div>
+            <div class="sb-cell">
+              <div class="sb-tag">penalty</div>
+              <div class="seg seg-red seg-4">
+                <span class="seg-bg">88:88</span>
+                <span class="seg-fg" id="home-pen2-time">0:00</span>
               </div>
             </div>
           </div>
         </div>
+
+        <!-- Home score -->
+        <div class="sb-cell sb-score-cell">
+          <div class="sb-tag sb-tag-team">Home</div>
+          <div class="seg seg-amber seg-2 seg-score">
+            <span class="seg-bg">88</span>
+            <span class="seg-fg" id="home-score">00</span>
+          </div>
+        </div>
+
+        <!-- Center: clock above, period + shots below. -->
+        <div class="sb-center">
+          <div class="seg seg-red seg-clock">
+            <span class="seg-bg" id="time-bg">88:88</span>
+            <span class="seg-fg" id="time">20:00</span>
+          </div>
+          <div class="sb-brand-mark">nevco</div>
+          <div class="sb-center-bottom">
+            <div class="seg seg-amber seg-2 seg-shot">
+              <span class="seg-bg">88</span>
+              <span class="seg-fg" id="home-shots">00</span>
+            </div>
+            <div class="sb-period-stack">
+              <div class="sb-period-row">
+                <div class="sb-tag">period</div>
+                <div class="seg seg-amber seg-1">
+                  <span class="seg-bg">8</span>
+                  <span class="seg-fg" id="period">1</span>
+                </div>
+              </div>
+              <div class="sb-tag sb-tag-shots">shots on goal</div>
+            </div>
+            <div class="seg seg-amber seg-2 seg-shot">
+              <span class="seg-bg">88</span>
+              <span class="seg-fg" id="guest-shots">00</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Guest score -->
+        <div class="sb-cell sb-score-cell">
+          <div class="sb-tag sb-tag-team">Guests</div>
+          <div class="seg seg-amber seg-2 seg-score">
+            <span class="seg-bg">88</span>
+            <span class="seg-fg" id="guest-score">00</span>
+          </div>
+        </div>
+
+        <!-- Guest penalties: mirrored (penalty inside, player outside). -->
+        <div class="sb-pens sb-pens-guest" aria-label="guest penalties">
+          <div class="sb-pen-row">
+            <div class="sb-cell">
+              <div class="sb-tag">penalty</div>
+              <div class="seg seg-red seg-4">
+                <span class="seg-bg">88:88</span>
+                <span class="seg-fg" id="guest-pen1-time">0:00</span>
+              </div>
+            </div>
+            <div class="sb-cell">
+              <div class="sb-tag">player</div>
+              <div class="seg seg-amber seg-2">
+                <span class="seg-bg">88</span>
+                <span class="seg-fg" id="guest-pen1-player">--</span>
+              </div>
+            </div>
+          </div>
+          <div class="sb-pen-row">
+            <div class="sb-cell">
+              <div class="sb-tag">penalty</div>
+              <div class="seg seg-red seg-4">
+                <span class="seg-bg">88:88</span>
+                <span class="seg-fg" id="guest-pen2-time">0:00</span>
+              </div>
+            </div>
+            <div class="sb-cell">
+              <div class="sb-tag">player</div>
+              <div class="seg seg-amber seg-2">
+                <span class="seg-bg">88</span>
+                <span class="seg-fg" id="guest-pen2-player">--</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
       </div>
     </section>
 

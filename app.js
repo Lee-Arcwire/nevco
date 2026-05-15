@@ -98,13 +98,9 @@
     guestScore: $('guest-score'),
     homeShots:  $('home-shots'),
     guestShots: $('guest-shots'),
-    homeTol:    $('home-tol'),
-    guestTol:   $('guest-tol'),
     period:     $('period'),
     time:       $('time'),
     timeBg:     $('time-bg'),
-    hornInd:    $('horn-indicator'),
-    goalLight:  $('goal-light'),
     led:        $('led-text'),
     status:     $('ctrl-status'),
     statusText: $('status-text'),
@@ -190,11 +186,12 @@
   }
 
   function formatPenaltyTime(ms) {
-    if (ms <= 0) return '00:00';
+    // Nevco 4760 shows penalty time as M:SS (no leading zero on minutes).
+    if (ms <= 0) return '0:00';
     const total = Math.ceil(ms / 1000);
     const m = Math.floor(total / 60);
     const s = total % 60;
-    return `${pad2(m)}:${pad2(s)}`;
+    return `${m}:${pad2(s)}`;
   }
 
   function parseTimeDigits(digits) {
@@ -230,13 +227,13 @@
   // ---------------------------------------------------------------
 
   function renderScoreboard() {
+    // The 4760 face does not show T.O.L. or horn/goal indicator lights, so
+    // those state fields exist but are not rendered.
     if (state.blanked) {
       els.homeScore.textContent  = '';
       els.guestScore.textContent = '';
       els.homeShots.textContent  = '';
       els.guestShots.textContent = '';
-      els.homeTol.textContent    = '';
-      els.guestTol.textContent   = '';
       els.period.textContent     = '';
       els.time.textContent       = '';
       els.homePen.forEach(p => { p.player.textContent = ''; p.time.textContent = ''; });
@@ -246,16 +243,12 @@
       els.guestScore.textContent = pad2(state.guest.score);
       els.homeShots.textContent  = pad2(state.home.shots);
       els.guestShots.textContent = pad2(state.guest.shots);
-      els.homeTol.textContent    = String(state.home.tol);
-      els.guestTol.textContent   = String(state.guest.tol);
       els.period.textContent     = String(state.period);
       els.time.textContent       = formatClock(state.timeMs);
       els.timeBg.textContent     = state.timeMs < 60 * 1000 ? '88.8' : '88:88';
       renderPenaltySlots(els.homePen,  state.home.penalties);
       renderPenaltySlots(els.guestPen, state.guest.penalties);
     }
-    els.hornInd.classList.toggle('on', state.hornOn && !state.blanked);
-    els.goalLight.classList.toggle('on', Date.now() < state.goalLightUntil && !state.blanked);
   }
 
   function renderPenaltySlots(slots, penalties) {
@@ -266,7 +259,7 @@
         slots[i].time.textContent   = formatPenaltyTime(p.remainingMs);
       } else {
         slots[i].player.textContent = '--';
-        slots[i].time.textContent   = '00:00';
+        slots[i].time.textContent   = '0:00';
       }
     }
   }
