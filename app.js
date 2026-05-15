@@ -23,6 +23,13 @@
    Clock display: MM:SS when >= 1:00, SS.T (with tenths) when < 1:00.
    Penalty countdowns: only the first two of each team's queue count
    down while the clock is running and not paused.
+
+   Keyboard:
+     - Space      emulates the toggle switch: start / stop the clock
+     - H          horn (press and hold)
+     - 0-9        numeric entry
+     - Enter / Esc commit / cancel a SET-armed entry
+     - Backspace  delete a digit from the entry buffer
    ==================================================================== */
 
 (() => {
@@ -809,52 +816,54 @@
   // buttons whose state we need to toggle visually (HORN press, SET armed).
   // The YES key doubles as ENTER and NO doubles as CANCEL, matching the
   // physical labels and the CSV's Key_Label column.
+  // text is the visible label printed on the black key face; \n is honoured
+  // via white-space: pre-line in CSS.
   const KEYPAD_LAYOUT = [
     // Row 1
-    { x: 524,  y: 378,  action: 'horn',             label: 'HORN',                id: 'horn-button' },
-    { x: 714,  y: 378,  action: 'new-minor',        label: 'HOME NEW MINOR',      team: 'home'  },
-    { x: 904,  y: 378,  action: 'new-minor',        label: 'GUEST NEW MINOR',     team: 'guest' },
-    { x: 1094, y: 377,  action: 'set',              label: 'SET',                 id: 'set-button' },
-    { x: 1763, y: 377,  action: 'timeout-timer',    label: 'TIME OUT TIMER'       },
-    { x: 1953, y: 377,  action: 'goal-light-reset', label: 'GOAL LIGHT RESET'     },
-    { x: 2143, y: 377,  action: 'options',          label: 'OPTIONS'              },
-    { x: 2333, y: 377,  action: 'enter',            label: 'YES / ENTER'          },
+    { x: 524,  y: 378,  action: 'horn',             label: 'HORN',                text: 'HORN',                 id: 'horn-button' },
+    { x: 714,  y: 378,  action: 'new-minor',        label: 'HOME NEW MINOR',      text: 'NEW\nMINOR',           team: 'home'  },
+    { x: 904,  y: 378,  action: 'new-minor',        label: 'GUEST NEW MINOR',     text: 'NEW\nMINOR',           team: 'guest' },
+    { x: 1094, y: 377,  action: 'set',              label: 'SET',                 text: 'SET',                  id: 'set-button' },
+    { x: 1763, y: 377,  action: 'timeout-timer',    label: 'TIME OUT TIMER',      text: 'TIME OUT\nTIMER'       },
+    { x: 1953, y: 377,  action: 'goal-light-reset', label: 'GOAL LIGHT RESET',    text: 'GOAL LIGHT\nRESET'     },
+    { x: 2143, y: 377,  action: 'options',          label: 'OPTIONS',             text: 'OPTIONS'               },
+    { x: 2333, y: 377,  action: 'enter',            label: 'YES / ENTER',         text: 'YES'                   },
     // Row 2
-    { x: 524,  y: 567,  action: 'insert-penalty',   label: 'INSERT PENALTY'       },
-    { x: 714,  y: 568,  action: 'new-major',        label: 'HOME NEW MAJOR',      team: 'home'  },
-    { x: 904,  y: 568,  action: 'new-major',        label: 'GUEST NEW MAJOR',     team: 'guest' },
-    { x: 1094, y: 567,  action: 'time-field',       label: 'TIME'                 },
-    { x: 1763, y: 567,  action: 'num',              label: '7',                   val: '7' },
-    { x: 1953, y: 567,  action: 'num',              label: '8',                   val: '8' },
-    { x: 2143, y: 567,  action: 'num',              label: '9',                   val: '9' },
-    { x: 2333, y: 567,  action: 'cancel',           label: 'NO / CANCEL'          },
+    { x: 524,  y: 567,  action: 'insert-penalty',   label: 'INSERT PENALTY',      text: 'INSERT\nPENALTY'       },
+    { x: 714,  y: 568,  action: 'new-major',        label: 'HOME NEW MAJOR',      text: 'NEW\nMAJOR',           team: 'home'  },
+    { x: 904,  y: 568,  action: 'new-major',        label: 'GUEST NEW MAJOR',     text: 'NEW\nMAJOR',           team: 'guest' },
+    { x: 1094, y: 567,  action: 'time-field',       label: 'TIME',                text: 'TIME'                  },
+    { x: 1763, y: 567,  action: 'num',              label: '7',                   text: '7',                    val: '7' },
+    { x: 1953, y: 567,  action: 'num',              label: '8',                   text: '8',                    val: '8' },
+    { x: 2143, y: 567,  action: 'num',              label: '9',                   text: '9',                    val: '9' },
+    { x: 2333, y: 567,  action: 'cancel',           label: 'NO / CANCEL',         text: 'NO'                    },
     // Row 3
-    { x: 524,  y: 757,  action: 'penalty-onoff',    label: 'PENALTY ON OFF'       },
-    { x: 714,  y: 758,  action: 'view-penalty',     label: 'HOME VIEW PENALTY',   team: 'home'  },
-    { x: 904,  y: 758,  action: 'view-penalty',     label: 'GUEST VIEW PENALTY',  team: 'guest' },
-    { x: 1094, y: 758,  action: 'edit-penalty',     label: 'EDIT PENALTY'         },
-    { x: 1763, y: 757,  action: 'num',              label: '4',                   val: '4' },
-    { x: 1953, y: 757,  action: 'num',              label: '5',                   val: '5' },
-    { x: 2143, y: 757,  action: 'num',              label: '6',                   val: '6' },
-    { x: 2333, y: 758,  action: 'time-of-day',      label: 'TIME OF DAY'          },
+    { x: 524,  y: 757,  action: 'penalty-onoff',    label: 'PENALTY ON OFF',      text: 'PENALTY\nON/OFF'       },
+    { x: 714,  y: 758,  action: 'view-penalty',     label: 'HOME VIEW PENALTY',   text: 'VIEW\nPENALTY',        team: 'home'  },
+    { x: 904,  y: 758,  action: 'view-penalty',     label: 'GUEST VIEW PENALTY',  text: 'VIEW\nPENALTY',        team: 'guest' },
+    { x: 1094, y: 758,  action: 'edit-penalty',     label: 'EDIT PENALTY',        text: 'EDIT\nPENALTY'         },
+    { x: 1763, y: 757,  action: 'num',              label: '4',                   text: '4',                    val: '4' },
+    { x: 1953, y: 757,  action: 'num',              label: '5',                   text: '5',                    val: '5' },
+    { x: 2143, y: 757,  action: 'num',              label: '6',                   text: '6',                    val: '6' },
+    { x: 2333, y: 758,  action: 'time-of-day',      label: 'TIME OF DAY',         text: 'TIME OF\nDAY'          },
     // Row 4
-    { x: 524,  y: 947,  action: 'time-on',          label: 'TIME ON'              },
-    { x: 714,  y: 948,  action: 'goal-saves',       label: 'HOME GOAL SAVES',     team: 'home'  },
-    { x: 904,  y: 948,  action: 'goal-saves',       label: 'GUEST GOAL SAVES',    team: 'guest' },
-    { x: 1094, y: 947,  action: 'clear-penalty',    label: 'CLEAR PENALTY'        },
-    { x: 1763, y: 947,  action: 'num',              label: '1',                   val: '1' },
-    { x: 1953, y: 947,  action: 'num',              label: '2',                   val: '2' },
-    { x: 2143, y: 947,  action: 'num',              label: '3',                   val: '3' },
-    { x: 2333, y: 948,  action: 'score',            label: 'HOME SCORE',          team: 'home'  },
+    { x: 524,  y: 947,  action: 'time-on',          label: 'TIME ON',             text: 'TIME ON'               },
+    { x: 714,  y: 948,  action: 'goal-saves',       label: 'HOME GOAL SAVES',     text: 'GOAL\nSAVES',          team: 'home'  },
+    { x: 904,  y: 948,  action: 'goal-saves',       label: 'GUEST GOAL SAVES',    text: 'GOAL\nSAVES',          team: 'guest' },
+    { x: 1094, y: 947,  action: 'clear-penalty',    label: 'CLEAR PENALTY',       text: 'CLEAR\nPENALTY'        },
+    { x: 1763, y: 947,  action: 'num',              label: '1',                   text: '1',                    val: '1' },
+    { x: 1953, y: 947,  action: 'num',              label: '2',                   text: '2',                    val: '2' },
+    { x: 2143, y: 947,  action: 'num',              label: '3',                   text: '3',                    val: '3' },
+    { x: 2333, y: 948,  action: 'score',            label: 'HOME SCORE',          text: 'HOME\nSCORE',          team: 'home'  },
     // Row 5
-    { x: 524,  y: 1137, action: 'time-off',         label: 'TIME OFF'             },
-    { x: 714,  y: 1138, action: 'goal-shots',       label: 'HOME GOAL SHOTS',     team: 'home'  },
-    { x: 904,  y: 1137, action: 'goal-shots',       label: 'GUEST GOAL SHOTS',    team: 'guest' },
-    { x: 1094, y: 1137, action: 'period',           label: 'PERIOD'               },
-    { x: 1763, y: 1137, action: 'scroll-profiles',  label: 'SCROLL PROFILES'      },
-    { x: 1953, y: 1137, action: 'num',              label: '0',                   val: '0' },
-    { x: 2143, y: 1137, action: 'blank',            label: 'BLANK'                },
-    { x: 2333, y: 1137, action: 'score',            label: 'GUEST SCORE',         team: 'guest' },
+    { x: 524,  y: 1137, action: 'time-off',         label: 'TIME OFF',            text: 'TIME OFF'              },
+    { x: 714,  y: 1138, action: 'goal-shots',       label: 'HOME GOAL SHOTS',     text: 'GOAL\nSHOTS',          team: 'home'  },
+    { x: 904,  y: 1137, action: 'goal-shots',       label: 'GUEST GOAL SHOTS',    text: 'GOAL\nSHOTS',          team: 'guest' },
+    { x: 1094, y: 1137, action: 'period',           label: 'PERIOD',              text: 'PERIOD'                },
+    { x: 1763, y: 1137, action: 'scroll-profiles',  label: 'SCROLL PROFILES',     text: 'SCROLL\nPROFILES'      },
+    { x: 1953, y: 1137, action: 'num',              label: '0',                   text: '0',                    val: '0' },
+    { x: 2143, y: 1137, action: 'blank',            label: 'BLANK',               text: 'BLANK'                 },
+    { x: 2333, y: 1137, action: 'score',            label: 'GUEST SCORE',         text: 'GUEST\nSCORE',         team: 'guest' },
   ];
 
   function buildKeypad() {
@@ -872,6 +881,7 @@
       if (k.team) btn.dataset.team = k.team;
       if (k.val != null) btn.dataset.val = k.val;
       if (k.id) btn.id = k.id;
+      btn.textContent = k.text;
       btn.style.left   = ((k.x / KEYPAD_IMAGE_W) * 100).toFixed(4) + '%';
       btn.style.top    = ((k.y / KEYPAD_IMAGE_H) * 100).toFixed(4) + '%';
       btn.style.width  = widthPct.toFixed(4) + '%';
@@ -931,7 +941,6 @@
 
   function bindKeyboard() {
     let hornHeld = false;
-    let setHeld = false;
 
     document.addEventListener('keydown', (e) => {
       // Don't capture keys when focus is on a real input
@@ -939,12 +948,12 @@
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
 
       if (e.key === ' ' || e.code === 'Space') {
+        // Space emulates the MPCW-7 toggle switch: start/stop the clock.
+        // Auto-repeat would flap the state; ignore.
         e.preventDefault();
-        if (!setHeld) {
-          setHeld = true;
-          ensureAudio();
-          pressSet();
-        }
+        if (e.repeat) return;
+        ensureAudio();
+        if (state.clockRunning) pressTimeOff(); else pressTimeOn();
         return;
       }
       if (e.key === 'h' || e.key === 'H') {
@@ -984,9 +993,7 @@
     });
 
     document.addEventListener('keyup', (e) => {
-      if (e.key === ' ' || e.code === 'Space') {
-        setHeld = false;
-      } else if (e.key === 'h' || e.key === 'H') {
+      if (e.key === 'h' || e.key === 'H') {
         hornHeld = false;
         setHornManual(false);
         els.hornButton.classList.remove('pressed');
@@ -995,7 +1002,6 @@
 
     window.addEventListener('blur', () => {
       hornHeld = false;
-      setHeld = false;
       setHornManual(false);
       els.hornButton.classList.remove('pressed');
     });
