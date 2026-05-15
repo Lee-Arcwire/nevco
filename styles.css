@@ -108,8 +108,11 @@ html, body {
   align-items: center;
   justify-content: flex-end;
   color: var(--led-on);
-  /* No text-shadow: a saturated LED colour against the black window reads
-     as an LED on its own; any blur smears the segments on real screens. */
+  /* Match the controller LED display: two em-relative shadow layers, so
+     the glow scales with the digit at every size. */
+  text-shadow:
+    0 0 0.10em var(--led-glow),
+    0 0 0.22em var(--led-glow);
 }
 
 /* Size hierarchy modelled on the 4760 reference: clock dominates, then
