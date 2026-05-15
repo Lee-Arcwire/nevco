@@ -42,6 +42,10 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 26px;
+  /* Uniform 80% scale of the scoreboard, controller display, and keypad so
+     the whole emulator fits on a typical screen without scrolling. zoom is
+     used (not transform: scale) because it also shrinks the layout box. */
+  zoom: 0.8;
 }
 
 /* ==================== SCOREBOARD (Nevco 4760) ==================== */
