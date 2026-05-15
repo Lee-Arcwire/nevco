@@ -14,11 +14,11 @@
   --sb-window-edge:  #0a1426;
 
   --led-amber-on:    #ff8a20;
-  --led-amber-glow:  rgba(255, 138, 32, 0.7);
+  --led-amber-glow:  rgba(255, 138, 32, 0.45);
   --led-amber-off:   rgba(255, 138, 32, 0.10);
 
   --led-red-on:      #ff3a1a;
-  --led-red-glow:    rgba(255, 58, 26, 0.7);
+  --led-red-glow:    rgba(255, 58, 26, 0.45);
   --led-red-off:     rgba(255, 58, 26, 0.10);
 
   --led-window-bg:   #15090a;
@@ -108,11 +108,11 @@ html, body {
   align-items: center;
   justify-content: flex-end;
   color: var(--led-on);
-  /* Glow scales with the digit (em units) so it isn't blown out on mobile. */
+  /* Subtle glow that scales with the digit (em units) - dialled down to
+     keep it readable instead of bloomed on small / large displays alike. */
   text-shadow:
-    0 0 0.05em var(--led-glow),
-    0 0 0.13em var(--led-glow),
-    0 0 0.24em var(--led-glow);
+    0 0 0.03em var(--led-glow),
+    0 0 0.09em var(--led-glow);
 }
 
 /* Size hierarchy modelled on the 4760 reference: clock dominates, then
