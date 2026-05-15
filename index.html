@@ -141,15 +141,12 @@
 
     <!-- ============== CONTROLLER (photo background + hotspots) ============== -->
     <section class="controller" aria-label="MPCW-7 hand controller">
-      <!-- Controller display panel sits between scoreboard and button pad -->
+      <!-- Controller display panel sits between scoreboard and button pad.
+           Single 16-character red LED window matching the MPCW-7 hand unit. -->
       <div class="ctrl-display">
         <div class="led-window" aria-live="polite">
-          <span class="led-bg">~~~~~~~~~~~~</span>
+          <span class="led-bg">8888888888888888</span>
           <span class="led-fg" id="led-text">READY</span>
-        </div>
-        <div class="ctrl-status" id="ctrl-status">
-          <span class="status-dot"></span>
-          <span class="status-text" id="status-text">READY</span>
         </div>
       </div>
 

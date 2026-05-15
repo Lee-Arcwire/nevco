@@ -104,8 +104,6 @@
     time:       $('time'),
     timeBg:     $('time-bg'),
     led:        $('led-text'),
-    status:     $('ctrl-status'),
-    statusText: $('status-text'),
     setBtn:     $('set-button'),
     hornButton: $('horn-button'),
     homePen: [
@@ -272,27 +270,6 @@
       els.setBtn.classList.toggle('armed', state.setMode && !state.entry);
     }
 
-    // Status pill next to the LED window
-    let status;
-    let setMode = false;
-    if (state.entry) {
-      status = entryHint(state.entry);
-      setMode = state.setMode;
-    } else if (state.setMode) {
-      status = 'SET MODE - press a field key';
-      setMode = true;
-    } else if (state.penaltyPaused && state.clockRunning) {
-      status = 'PENALTY OFF - countdown paused';
-    } else if (state.clockRunning) {
-      status = 'CLOCK RUNNING';
-    } else if (state.blanked) {
-      status = 'SCOREBOARD BLANKED';
-    } else {
-      status = 'READY';
-    }
-    if (els.status) els.status.classList.toggle('set-mode', setMode);
-    if (els.statusText) els.statusText.textContent = status;
-
     // LED text
     els.led.textContent = ledText();
 
@@ -324,30 +301,6 @@
       case 'clear-slot':  return '[data-action="clear-penalty"]';
       default: return null;
     }
-  }
-
-  function entryHint(e) {
-    switch (e.kind) {
-      case 'clock':   return 'TIME · enter MMSS / MSS, ENTER';
-      case 'period':  return 'PERIOD · enter 1-9, ENTER';
-      case 'score':   return `${e.team.toUpperCase()} SCORE · enter, ENTER`;
-      case 'shots':   return `${e.team.toUpperCase()} SHOTS · enter, ENTER`;
-      case 'saves':   return `${e.team.toUpperCase()} SAVES · enter, ENTER`;
-      case 'tol':     return `${e.team.toUpperCase()} T.O.L. · enter, ENTER`;
-      case 'penalty':
-        if (e.phase === 'player') {
-          const tag = e.kindType === 'minor' ? 'MINOR'
-                    : e.kindType === 'major' ? 'MAJOR'
-                    : 'PEN';
-          return `${e.team.toUpperCase()} ${tag} · 2-digit player #`;
-        }
-        return `${e.team.toUpperCase()} #${pad2(e.player)} · 4-digit MMSS, ENTER`;
-      case 'await-team':
-        return `Press HOME or GUESTS to select team`;
-      case 'clear-slot':
-        return `${e.team.toUpperCase()} CLEAR · press 1 or 2`;
-    }
-    return '';
   }
 
   function ledText() {
