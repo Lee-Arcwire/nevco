@@ -33,6 +33,10 @@ html, body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   -webkit-font-smoothing: antialiased;
   user-select: none;
+  /* The scoreboard uses transform: scale to fit narrow viewports; the
+     pre-transform overflow can still influence the document's scrollWidth,
+     so clip horizontal overflow at the page root. */
+  overflow-x: clip;
 }
 
 .app {
@@ -42,10 +46,6 @@ html, body {
   display: flex;
   flex-direction: column;
   gap: 26px;
-  /* Uniform 80% scale of the scoreboard, controller display, and keypad so
-     the whole emulator fits on a typical screen without scrolling. zoom is
-     used (not transform: scale) because it also shrinks the layout box. */
-  zoom: 0.8;
 }
 
 /* ==================== SCOREBOARD (Nevco 4760) ==================== */
@@ -54,19 +54,19 @@ html, body {
 
 .sb-board {
   width: 100%;
-  max-width: 1280px;
+  max-width: 1024px;
   background:
     radial-gradient(ellipse at top, #1f4378 0%, var(--sb-board) 55%, #0e2349 100%);
   border: 3px solid var(--sb-board-edge);
   border-radius: 4px;
-  padding: 10px 16px;
+  padding: clamp(4px, 0.78vw, 10px) clamp(6px, 1.25vw, 16px);
   box-shadow:
     inset 0 0 60px rgba(0, 0, 0, 0.45),
     0 8px 24px rgba(0, 0, 0, 0.55);
   display: grid;
   grid-template-columns: auto auto 1fr auto auto;
   align-items: center;
-  gap: 14px;
+  gap: clamp(4px, 1.10vw, 14px);
 }
 
 /* ---- Digit windows (shared by amber & red variants) ---- */
@@ -104,29 +104,32 @@ html, body {
   align-items: center;
   justify-content: flex-end;
   color: var(--led-on);
+  /* Glow scales with the digit (em units) so it isn't blown out on mobile. */
   text-shadow:
-    0 0 4px var(--led-glow),
-    0 0 12px var(--led-glow),
-    0 0 22px var(--led-glow);
+    0 0 0.05em var(--led-glow),
+    0 0 0.13em var(--led-glow),
+    0 0 0.24em var(--led-glow);
 }
 
 /* Size hierarchy modelled on the 4760 reference: clock dominates, then
    score (~80% of clock), player & penalty time (~55-60%), period (~50%),
-   shots (~40%). */
-.seg-1     { font-size: 46px; min-width: 0.7em; }   /* player # default */
-.seg-2     { font-size: 46px; min-width: 1.4em; }   /* player # default */
-.seg-4     { font-size: 40px; min-width: 2.6em; }   /* penalty time */
-.seg-clock { font-size: 84px; min-width: 2.9em; }   /* main clock */
-.seg-score { font-size: 68px; }                     /* home / guests score */
-.seg-shot  { font-size: 34px; }                     /* shots on goal digits */
-.sb-period-row .seg-1 { font-size: 42px; }          /* period (slightly smaller than player) */
+   shots (~40%). Sizes are fluid via clamp(min, vw, max) so the scoreboard
+   fits a portrait phone without overflowing while still hitting the full
+   desktop size at ~1280px. */
+.seg-1     { font-size: clamp(10px, 2.88vw, 37px); min-width: 0.7em; }
+.seg-2     { font-size: clamp(10px, 2.88vw, 37px); min-width: 1.4em; }
+.seg-4     { font-size: clamp(9px,  2.50vw, 32px); min-width: 2.6em; }
+.seg-clock { font-size: clamp(18px, 5.25vw, 67px); min-width: 2.9em; }
+.seg-score { font-size: clamp(14px, 4.25vw, 54px); }
+.seg-shot  { font-size: clamp(8px,  2.13vw, 27px); }
+.sb-period-row .seg-1 { font-size: clamp(10px, 2.63vw, 34px); }
 
 /* ---- Label plaques ("player", "penalty", "Home", "period", etc.) ---- */
 
 .sb-tag {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 500;
-  font-size: 13px;
+  font-size: clamp(9px, 0.82vw, 10px);
   letter-spacing: 0.01em;
   color: #f3f3f3;
   background: #050505;
@@ -137,8 +140,8 @@ html, body {
   white-space: nowrap;
   align-self: center;
 }
-.sb-tag-team { font-size: 15px; font-weight: 600; }
-.sb-tag-shots { font-size: 12px; padding: 1px 8px; margin-top: 4px; }
+.sb-tag-team  { font-size: clamp(10px, 0.94vw, 12px); font-weight: 600; }
+.sb-tag-shots { font-size: clamp(8px,  0.75vw, 10px); padding: 1px 8px; margin-top: 4px; }
 
 /* ---- Cells & rows ---- */
 
@@ -151,19 +154,20 @@ html, body {
 
 .sb-score-cell {
   align-items: center;
-  min-width: 110px;
+  /* No fixed min-width: at narrow viewports the score cell shrinks with
+     its digits so the board can fit a portrait phone. */
 }
 
 .sb-pens {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: clamp(4px, 0.78vw, 10px);
 }
 
 .sb-pen-row {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
+  gap: clamp(4px, 0.78vw, 10px);
 }
 
 /* ---- Center column (clock, brand mark, period & shots row) ---- */
@@ -173,13 +177,13 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 0 12px;
+  padding: 0 clamp(4px, 0.94vw, 12px);
 }
 
 .sb-brand-mark {
   font-family: 'Inter', sans-serif;
   font-weight: 600;
-  font-size: 10px;
+  font-size: clamp(7px, 0.78vw, 10px);
   letter-spacing: 0.35em;
   text-transform: lowercase;
   color: rgba(255, 255, 255, 0.45);
@@ -189,7 +193,7 @@ html, body {
 .sb-center-bottom {
   display: flex;
   align-items: flex-end;
-  gap: 18px;
+  gap: clamp(6px, 1.41vw, 18px);
   margin-top: 6px;
 }
 
@@ -217,7 +221,7 @@ html, body {
 .ctrl-photo {
   position: relative;
   width: 100%;
-  max-width: 1100px;
+  max-width: 880px;
   aspect-ratio: 2997 / 1498;
   background-image: url('nevco_mpcw7_hockey.png');
   background-size: 100% 100%;
@@ -233,7 +237,7 @@ html, body {
 
 .ctrl-display {
   width: 100%;
-  max-width: 1100px;
+  max-width: 880px;
   display: flex;
   justify-content: center;
   padding: 10px 16px;
@@ -266,7 +270,7 @@ html, body {
 .led-bg,
 .led-fg {
   font-family: 'DSEG14 Classic Mini', 'DSEG14ClassicMini', 'Share Tech Mono', monospace;
-  font-size: 26px;
+  font-size: clamp(11px, 1.63vw, 21px);
   letter-spacing: 0.08em;
   white-space: nowrap;
 }
@@ -284,10 +288,10 @@ html, body {
   justify-content: center;
   padding: inherit;
   color: var(--led-red-on);
+  /* em-relative glow so it stays subtle when the LED font shrinks on mobile. */
   text-shadow:
-    0 0 4px var(--led-red-glow),
-    0 0 10px var(--led-red-glow),
-    0 0 22px var(--led-red-glow);
+    0 0 0.10em var(--led-red-glow),
+    0 0 0.22em var(--led-red-glow);
 }
 
 /* ---- Click hotspots ---- */
@@ -332,26 +336,5 @@ html, body {
 
 /* ==================== RESPONSIVE ==================== */
 
-@media (max-width: 1000px) {
-  .seg-1     { font-size: 36px; }
-  .seg-2     { font-size: 36px; }
-  .seg-4     { font-size: 30px; }
-  .seg-clock { font-size: 62px; }
-  .seg-score { font-size: 50px; }
-  .seg-shot  { font-size: 26px; }
-  .sb-period-row .seg-1 { font-size: 32px; }
-  .sb-board  { gap: 8px; padding: 8px 10px; }
-  .sb-tag    { font-size: 11px; padding: 1px 6px; }
-}
-
-@media (max-width: 680px) {
-  .seg-1     { font-size: 26px; }
-  .seg-2     { font-size: 26px; }
-  .seg-4     { font-size: 20px; }
-  .seg-clock { font-size: 42px; }
-  .seg-score { font-size: 34px; }
-  .seg-shot  { font-size: 18px; }
-  .sb-period-row .seg-1 { font-size: 22px; }
-  .sb-board  { gap: 6px; padding: 6px 8px; }
-  .sb-tag    { font-size: 10px; padding: 1px 4px; }
-}
+/* Sizes scale fluidly via clamp(min, vw, max) on the rules above; no
+   step-based breakpoints needed. */
