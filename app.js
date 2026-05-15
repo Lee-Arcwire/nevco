@@ -977,29 +977,6 @@
   // Init
   // ---------------------------------------------------------------
 
-  // Scale the scoreboard to fit when its intrinsic content is wider than
-  // the available space (typically on portrait phones). Labels like
-  // "shots on goal" have a minimum readable width that the fluid CSS
-  // clamps can't go below, so when their min-content still overflows we
-  // scale the whole board uniformly with transform. The .scoreboard
-  // wrapper's height is set to the scaled height so the controller below
-  // doesn't end up floating over empty space.
-  function fitScoreboard() {
-    const wrap  = document.querySelector('.scoreboard');
-    const board = document.querySelector('.sb-board');
-    if (!wrap || !board) return;
-    board.style.transform = '';
-    wrap.style.height = '';
-    const natural = board.scrollWidth;
-    const avail   = wrap.clientWidth;
-    if (natural > avail + 1) {
-      const s = avail / natural;
-      board.style.transformOrigin = 'top center';
-      board.style.transform = `scale(${s})`;
-      wrap.style.height = `${Math.ceil(board.offsetHeight * s)}px`;
-    }
-  }
-
   function init() {
     buildKeypad();
     // The HORN and SET buttons are created dynamically, so refresh refs that
@@ -1008,11 +985,6 @@
     els.hornButton = document.getElementById('horn-button');
     bindKeypad();
     bindKeyboard();
-    fitScoreboard();
-    window.addEventListener('resize', fitScoreboard);
-    if (document.fonts && document.fonts.ready) {
-      document.fonts.ready.then(fitScoreboard);
-    }
     requestAnimationFrame((t) => { lastTick = t; tick(t); });
   }
 

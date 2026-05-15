@@ -59,14 +59,18 @@ html, body {
     radial-gradient(ellipse at top, #1f4378 0%, var(--sb-board) 55%, #0e2349 100%);
   border: 3px solid var(--sb-board-edge);
   border-radius: 4px;
-  padding: clamp(4px, 0.78vw, 10px) clamp(6px, 1.25vw, 16px);
+  padding: clamp(4px, 0.78cqi, 10px) clamp(6px, 1.25cqi, 16px);
   box-shadow:
     inset 0 0 60px rgba(0, 0, 0, 0.45),
     0 8px 24px rgba(0, 0, 0, 0.55);
   display: grid;
   grid-template-columns: auto auto 1fr auto auto;
   align-items: center;
-  gap: clamp(4px, 1.10vw, 14px);
+  gap: clamp(4px, 1.10cqi, 14px);
+  /* The board is its own size container: all digit / tag / padding / gap
+     sizes inside use cqi (1% of board width), so the content always scales
+     to fit the chassis instead of overflowing the blue background. */
+  container-type: inline-size;
 }
 
 /* ---- Digit windows (shared by amber & red variants) ---- */
@@ -80,7 +84,7 @@ html, body {
   background: var(--sb-window-bg);
   border: 1px solid var(--sb-window-edge);
   border-radius: 3px;
-  padding: 4px 6px;
+  padding: clamp(1px, 0.4cqi, 4px) clamp(2px, 0.6cqi, 6px);
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.95);
 }
 
@@ -113,35 +117,42 @@ html, body {
 
 /* Size hierarchy modelled on the 4760 reference: clock dominates, then
    score (~80% of clock), player & penalty time (~55-60%), period (~50%),
-   shots (~40%). Sizes are fluid via clamp(min, vw, max) so the scoreboard
-   fits a portrait phone without overflowing while still hitting the full
-   desktop size at ~1280px. */
-.seg-1     { font-size: clamp(10px, 2.88vw, 37px); min-width: 0.7em; }
-.seg-2     { font-size: clamp(10px, 2.88vw, 37px); min-width: 1.4em; }
-.seg-4     { font-size: clamp(9px,  2.50vw, 32px); min-width: 2.6em; }
-.seg-clock { font-size: clamp(18px, 5.25vw, 67px); min-width: 2.9em; }
-.seg-score { font-size: clamp(14px, 4.25vw, 54px); }
-.seg-shot  { font-size: clamp(8px,  2.13vw, 27px); }
-.sb-period-row .seg-1 { font-size: clamp(10px, 2.63vw, 34px); }
+   shots (~40%). cqi = 1% of the .sb-board inline-size (set as a container
+   above). All scoreboard sizes scale with the board itself, so content
+   always fits
+   inside the blue chassis at any viewport width. */
+.seg-1     { font-size: clamp(8px,  3.60cqi, 37px); min-width: 0.7em; }
+.seg-2     { font-size: clamp(8px,  3.60cqi, 37px); min-width: 1.4em; }
+.seg-4     { font-size: clamp(7px,  3.13cqi, 32px); min-width: 2.6em; }
+.seg-clock { font-size: clamp(14px, 6.56cqi, 67px); min-width: 2.9em; }
+.seg-score { font-size: clamp(11px, 5.31cqi, 54px); }
+.seg-shot  { font-size: clamp(7px,  2.66cqi, 27px); }
+.sb-period-row .seg-1 { font-size: clamp(8px, 3.28cqi, 34px); }
 
 /* ---- Label plaques ("player", "penalty", "Home", "period", etc.) ---- */
 
 .sb-tag {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   font-weight: 500;
-  font-size: clamp(9px, 0.82vw, 10px);
+  font-size: clamp(3px, 1.02cqi, 10px);
   letter-spacing: 0.01em;
   color: #f3f3f3;
   background: #050505;
   border: 1px solid #1a1a1a;
-  padding: 2px 10px;
+  /* Padding scales with the board so labels don't dominate cell width on
+     mobile via fixed pixel padding. */
+  padding: clamp(1px, 0.2cqi, 2px) clamp(2px, 1.0cqi, 10px);
   border-radius: 2px;
   text-align: center;
   white-space: nowrap;
   align-self: center;
 }
-.sb-tag-team  { font-size: clamp(10px, 0.94vw, 12px); font-weight: 600; }
-.sb-tag-shots { font-size: clamp(8px,  0.75vw, 10px); padding: 1px 8px; margin-top: 4px; }
+.sb-tag-team  { font-size: clamp(4px, 1.17cqi, 12px); font-weight: 600; }
+.sb-tag-shots {
+  font-size: clamp(3px, 0.94cqi, 10px);
+  padding: clamp(1px, 0.1cqi, 1px) clamp(2px, 0.8cqi, 8px);
+  margin-top: clamp(1px, 0.4cqi, 4px);
+}
 
 /* ---- Cells & rows ---- */
 
@@ -161,13 +172,13 @@ html, body {
 .sb-pens {
   display: flex;
   flex-direction: column;
-  gap: clamp(4px, 0.78vw, 10px);
+  gap: clamp(2px, 0.78cqi, 10px);
 }
 
 .sb-pen-row {
   display: flex;
   align-items: flex-end;
-  gap: clamp(4px, 0.78vw, 10px);
+  gap: clamp(2px, 0.78cqi, 10px);
 }
 
 /* ---- Center column (clock, brand mark, period & shots row) ---- */
@@ -177,13 +188,13 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 0 clamp(4px, 0.94vw, 12px);
+  padding: 0 clamp(2px, 0.94cqi, 12px);
 }
 
 .sb-brand-mark {
   font-family: 'Inter', sans-serif;
   font-weight: 600;
-  font-size: clamp(7px, 0.78vw, 10px);
+  font-size: clamp(5px, 0.78cqi, 10px);
   letter-spacing: 0.35em;
   text-transform: lowercase;
   color: rgba(255, 255, 255, 0.45);
@@ -193,7 +204,7 @@ html, body {
 .sb-center-bottom {
   display: flex;
   align-items: flex-end;
-  gap: clamp(6px, 1.41vw, 18px);
+  gap: clamp(3px, 1.41cqi, 18px);
   margin-top: 6px;
 }
 
