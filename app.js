@@ -881,7 +881,6 @@
       if (k.team) btn.dataset.team = k.team;
       if (k.val != null) btn.dataset.val = k.val;
       if (k.id) btn.id = k.id;
-      btn.textContent = k.text;
       btn.style.left   = ((k.x / KEYPAD_IMAGE_W) * 100).toFixed(4) + '%';
       btn.style.top    = ((k.y / KEYPAD_IMAGE_H) * 100).toFixed(4) + '%';
       btn.style.width  = widthPct.toFixed(4) + '%';

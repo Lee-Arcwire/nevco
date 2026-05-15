@@ -270,23 +270,6 @@ html, body {
   all: unset;
   position: absolute;
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  white-space: pre-line; /* respect \n in the label */
-  overflow: hidden;
-  padding: 0 2px;
-
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-  font-weight: 700;
-  /* At max-width 1100 the photo is ~550px tall and each key is ~20px tall,
-     so two lines need ~8-9px max to fit. */
-  font-size: clamp(5px, 0.65vw, 9px);
-  letter-spacing: 0.02em;
-  line-height: 1;
-  color: #f3f3f3;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.85);
 
   background: linear-gradient(180deg, #2c2c2c 0%, #060606 100%);
   border: 1px solid #000;
@@ -299,32 +282,16 @@ html, body {
   pointer-events: auto;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 60ms ease-out, box-shadow 60ms ease-out, background 60ms ease-out;
-}
-
-.hot:hover {
-  background: linear-gradient(180deg, #3a3a3a 0%, #101010 100%);
+  transition: transform 60ms ease-out, box-shadow 60ms ease-out;
 }
 
 .hot:active,
 .hot.pressed {
   transform: translateY(1px);
-  background: linear-gradient(180deg, #060606 0%, #1c1c1c 100%);
   box-shadow:
     inset 0 2px 4px rgba(0, 0, 0, 0.95),
     inset 0 -1px 0 rgba(255, 255, 255, 0.04),
     0 0 1px rgba(0, 0, 0, 0.5);
-}
-
-.hot.armed {
-  color: #1a0e00;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.25);
-  background: linear-gradient(180deg, #ffce4a 0%, #c9881a 100%);
-  border-color: #5a3a08;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -2px 2px rgba(0, 0, 0, 0.25),
-    0 0 14px rgba(255, 206, 74, 0.65);
 }
 
 /* ---- Status pill next to the LED window ---- */
