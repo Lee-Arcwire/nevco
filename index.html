@@ -188,75 +188,9 @@
       </div>
 
       <div class="ctrl-photo">
-
-        <!-- LEFT function pad overlay: 4 cols x 6 rows -->
-        <div class="fn-overlay overlay-grid" aria-label="function keypad">
-          <!-- Row 1 -->
-          <button type="button" class="hot" data-action="horn"           id="horn-button" aria-label="HORN"></button>
-          <button type="button" class="hot" data-action="new-minor"      data-team="home"  aria-label="HOME NEW MINOR"></button>
-          <button type="button" class="hot" data-action="new-minor"      data-team="guest" aria-label="GUEST NEW MINOR"></button>
-          <button type="button" class="hot" data-action="set"            id="set-button"   aria-label="SET"></button>
-          <!-- Row 2 -->
-          <button type="button" class="hot" data-action="insert-penalty" aria-label="INSERT PENALTY"></button>
-          <button type="button" class="hot" data-action="new-major"      data-team="home"  aria-label="HOME NEW MAJOR"></button>
-          <button type="button" class="hot" data-action="new-major"      data-team="guest" aria-label="GUEST NEW MAJOR"></button>
-          <button type="button" class="hot" data-action="time-field"     aria-label="TIME"></button>
-          <!-- Row 3 -->
-          <button type="button" class="hot" data-action="penalty-onoff"  aria-label="PENALTY ON OFF"></button>
-          <button type="button" class="hot" data-action="view-penalty"   aria-label="VIEW PENALTY"></button>
-          <button type="button" class="hot" data-action="edit-penalty"   aria-label="EDIT PENALTY"></button>
-          <span aria-hidden="true"></span>
-          <!-- Row 4 -->
-          <button type="button" class="hot" data-action="time-on"        aria-label="TIME ON"></button>
-          <button type="button" class="hot" data-action="goal-saves"     data-team="home"  aria-label="HOME GOAL SAVES"></button>
-          <button type="button" class="hot" data-action="goal-saves"     data-team="guest" aria-label="GUEST GOAL SAVES"></button>
-          <button type="button" class="hot" data-action="clear-penalty"  aria-label="CLEAR PENALTY"></button>
-          <!-- Row 5 -->
-          <span aria-hidden="true"></span>
-          <button type="button" class="hot" data-action="goal-shots"     data-team="home"  aria-label="HOME GOAL SHOTS"></button>
-          <button type="button" class="hot" data-action="goal-shots"     data-team="guest" aria-label="GUEST GOAL SHOTS"></button>
-          <button type="button" class="hot" data-action="period"         aria-label="PERIOD"></button>
-          <!-- Row 6 -->
-          <button type="button" class="hot" data-action="time-off"       aria-label="TIME OFF"></button>
-          <button type="button" class="hot" data-action="team-home"      aria-label="HOME"></button>
-          <button type="button" class="hot" data-action="team-guest"     aria-label="GUESTS"></button>
-          <span aria-hidden="true"></span>
-        </div>
-
-        <!-- RIGHT numeric pad overlay: 5 cols x 5 rows -->
-        <div class="num-overlay overlay-grid" aria-label="numeric keypad">
-          <!-- Row 1 -->
-          <button type="button" class="hot" data-action="timeout-timer"    aria-label="TIME OUT TIMER"></button>
-          <button type="button" class="hot" data-action="goal-light-reset" aria-label="GOAL LIGHT RESET"></button>
-          <button type="button" class="hot" data-action="options"          aria-label="OPTIONS"></button>
-          <button type="button" class="hot" data-action="yes"              aria-label="YES"></button>
-          <button type="button" class="hot" data-action="enter"            aria-label="ENTER"></button>
-          <!-- Row 2 -->
-          <button type="button" class="hot" data-action="num" data-val="7" aria-label="7"></button>
-          <button type="button" class="hot" data-action="num" data-val="8" aria-label="8"></button>
-          <button type="button" class="hot" data-action="num" data-val="9" aria-label="9"></button>
-          <button type="button" class="hot" data-action="no"               aria-label="NO"></button>
-          <button type="button" class="hot" data-action="cancel"           aria-label="CANCEL"></button>
-          <!-- Row 3 -->
-          <button type="button" class="hot" data-action="num" data-val="4" aria-label="4"></button>
-          <button type="button" class="hot" data-action="num" data-val="5" aria-label="5"></button>
-          <button type="button" class="hot" data-action="num" data-val="6" aria-label="6"></button>
-          <span aria-hidden="true"></span>
-          <button type="button" class="hot" data-action="time-of-day"      aria-label="TIME OF DAY"></button>
-          <!-- Row 4 -->
-          <button type="button" class="hot" data-action="num" data-val="1" aria-label="1"></button>
-          <button type="button" class="hot" data-action="num" data-val="2" aria-label="2"></button>
-          <button type="button" class="hot" data-action="num" data-val="3" aria-label="3"></button>
-          <span aria-hidden="true"></span>
-          <button type="button" class="hot" data-action="score" data-team="home"  aria-label="HOME SCORE"></button>
-          <!-- Row 5 -->
-          <button type="button" class="hot" data-action="scroll-profiles"  aria-label="SCROLL PROFILES"></button>
-          <button type="button" class="hot" data-action="num" data-val="0" aria-label="0"></button>
-          <button type="button" class="hot" data-action="blank"            aria-label="BLANK"></button>
-          <span aria-hidden="true"></span>
-          <button type="button" class="hot" data-action="score" data-team="guest" aria-label="GUEST SCORE"></button>
-        </div>
-
+        <!-- Buttons positioned from hockey_keypad_coordinates.csv (image is 2997 x 1498 px;
+             each button is 145 x 55 px). The layer is populated by app.js. -->
+        <div class="ctrl-buttons" id="ctrl-buttons" aria-label="MPCW-7 keypad"></div>
       </div>
     </section>
 
@@ -267,9 +201,9 @@
         <div><b>SET</b> &mdash; arm a correction; then press the field key (TIME, PERIOD, HOME SCORE, GUEST SCORE, GOAL SHOTS, GOAL SAVES) and enter digits + ENTER</div>
         <div><b>TIME ON / TIME OFF</b> &mdash; start / stop the game clock</div>
         <div><b>NEW MINOR / NEW MAJOR</b> &mdash; enqueue 2:00 / 5:00 penalty; type player # + ENTER</div>
-        <div><b>INSERT PENALTY</b> &mdash; press a team key (HOME / GUESTS), then player # ENTER, then MMSS / MSS ENTER</div>
+        <div><b>INSERT PENALTY</b> &mdash; press any home-column or guest-column key to pick a team, then player # ENTER, then MMSS / MSS ENTER</div>
         <div><b>PENALTY ON / OFF</b> &mdash; pause / resume penalty countdown</div>
-        <div><b>CLEAR PENALTY</b> &mdash; press a team key, then 1 or 2 to clear that slot</div>
+        <div><b>CLEAR PENALTY</b> &mdash; press a home-column or guest-column key, then 1 or 2 to clear that slot</div>
         <div><b>HOME SCORE / GUEST SCORE</b> &mdash; +1 goal (lights GOAL light); in SET, type digits + ENTER</div>
         <div><b>GOAL SHOTS / GOAL SAVES</b> &mdash; +1 stat; in SET, enter exact value</div>
         <div><b>PERIOD</b> &mdash; +1 period (resets clock); in SET, enter exact value</div>

@@ -255,42 +255,22 @@ html, body {
 }
 
 /* ---- Click hotspots ---- */
+/* Each .hot is positioned absolutely from hockey_keypad_coordinates.csv:
+   left/top/width/height come in as inline % so the buttons scale with the
+   photo. The .ctrl-buttons layer just provides a positioning context. */
 
-.overlay-grid {
+.ctrl-buttons {
   position: absolute;
-  display: grid;
-  pointer-events: none; /* let .hot children claim clicks */
-}
-
-.fn-overlay {
-  /* Left function pad — light-blue panel */
-  left: 11.4%;
-  top: 13.6%;
-  width: 23.5%;
-  height: 65%;
-  grid-template-columns: repeat(4, 1fr);
-  grid-template-rows: repeat(6, 1fr);
-  column-gap: 0.6%;
-  row-gap: 2.8%;
-}
-
-.num-overlay {
-  /* Right numeric pad — dark navy panel */
-  left: 58.4%;
-  top: 13.6%;
-  width: 30.5%;
-  height: 65%;
-  grid-template-columns: repeat(5, 1fr);
-  grid-template-rows: repeat(5, 1fr);
-  column-gap: 0.5%;
-  row-gap: 2.8%;
+  inset: 0;
+  pointer-events: none;
 }
 
 .hot {
   all: unset;
+  position: absolute;
   pointer-events: auto;
   cursor: pointer;
-  border-radius: 14%;
+  border-radius: 6px;
   transition: background 60ms, box-shadow 60ms;
   -webkit-tap-highlight-color: transparent;
 }

@@ -792,6 +792,95 @@
   }
 
   // ---------------------------------------------------------------
+  // Keypad layout (from hockey_keypad_coordinates.csv)
+  // ---------------------------------------------------------------
+  // The console photo is 2997 x 1498 px and each button is 145 x 55 px.
+  // Positions are kept in source pixels and converted to % at build time so
+  // the keypad scales with .ctrl-photo (which preserves the photo's
+  // aspect ratio).
+
+  const KEYPAD_IMAGE_W = 2997;
+  const KEYPAD_IMAGE_H = 1498;
+  const KEY_W = 145;
+  const KEY_H = 55;
+
+  // Function: passed to doAction(). team / val mirror the existing
+  // [data-team] / [data-val] selectors used by app.js. id is set on the two
+  // buttons whose state we need to toggle visually (HORN press, SET armed).
+  // The YES key doubles as ENTER and NO doubles as CANCEL, matching the
+  // physical labels and the CSV's Key_Label column.
+  const KEYPAD_LAYOUT = [
+    // Row 1
+    { x: 524,  y: 378,  action: 'horn',             label: 'HORN',                id: 'horn-button' },
+    { x: 714,  y: 378,  action: 'new-minor',        label: 'HOME NEW MINOR',      team: 'home'  },
+    { x: 904,  y: 378,  action: 'new-minor',        label: 'GUEST NEW MINOR',     team: 'guest' },
+    { x: 1094, y: 377,  action: 'set',              label: 'SET',                 id: 'set-button' },
+    { x: 1763, y: 377,  action: 'timeout-timer',    label: 'TIME OUT TIMER'       },
+    { x: 1953, y: 377,  action: 'goal-light-reset', label: 'GOAL LIGHT RESET'     },
+    { x: 2143, y: 377,  action: 'options',          label: 'OPTIONS'              },
+    { x: 2333, y: 377,  action: 'enter',            label: 'YES / ENTER'          },
+    // Row 2
+    { x: 524,  y: 567,  action: 'insert-penalty',   label: 'INSERT PENALTY'       },
+    { x: 714,  y: 568,  action: 'new-major',        label: 'HOME NEW MAJOR',      team: 'home'  },
+    { x: 904,  y: 568,  action: 'new-major',        label: 'GUEST NEW MAJOR',     team: 'guest' },
+    { x: 1094, y: 567,  action: 'time-field',       label: 'TIME'                 },
+    { x: 1763, y: 567,  action: 'num',              label: '7',                   val: '7' },
+    { x: 1953, y: 567,  action: 'num',              label: '8',                   val: '8' },
+    { x: 2143, y: 567,  action: 'num',              label: '9',                   val: '9' },
+    { x: 2333, y: 567,  action: 'cancel',           label: 'NO / CANCEL'          },
+    // Row 3
+    { x: 524,  y: 757,  action: 'penalty-onoff',    label: 'PENALTY ON OFF'       },
+    { x: 714,  y: 758,  action: 'view-penalty',     label: 'HOME VIEW PENALTY',   team: 'home'  },
+    { x: 904,  y: 758,  action: 'view-penalty',     label: 'GUEST VIEW PENALTY',  team: 'guest' },
+    { x: 1094, y: 758,  action: 'edit-penalty',     label: 'EDIT PENALTY'         },
+    { x: 1763, y: 757,  action: 'num',              label: '4',                   val: '4' },
+    { x: 1953, y: 757,  action: 'num',              label: '5',                   val: '5' },
+    { x: 2143, y: 757,  action: 'num',              label: '6',                   val: '6' },
+    { x: 2333, y: 758,  action: 'time-of-day',      label: 'TIME OF DAY'          },
+    // Row 4
+    { x: 524,  y: 947,  action: 'time-on',          label: 'TIME ON'              },
+    { x: 714,  y: 948,  action: 'goal-saves',       label: 'HOME GOAL SAVES',     team: 'home'  },
+    { x: 904,  y: 948,  action: 'goal-saves',       label: 'GUEST GOAL SAVES',    team: 'guest' },
+    { x: 1094, y: 947,  action: 'clear-penalty',    label: 'CLEAR PENALTY'        },
+    { x: 1763, y: 947,  action: 'num',              label: '1',                   val: '1' },
+    { x: 1953, y: 947,  action: 'num',              label: '2',                   val: '2' },
+    { x: 2143, y: 947,  action: 'num',              label: '3',                   val: '3' },
+    { x: 2333, y: 948,  action: 'score',            label: 'HOME SCORE',          team: 'home'  },
+    // Row 5
+    { x: 524,  y: 1137, action: 'time-off',         label: 'TIME OFF'             },
+    { x: 714,  y: 1138, action: 'goal-shots',       label: 'HOME GOAL SHOTS',     team: 'home'  },
+    { x: 904,  y: 1137, action: 'goal-shots',       label: 'GUEST GOAL SHOTS',    team: 'guest' },
+    { x: 1094, y: 1137, action: 'period',           label: 'PERIOD'               },
+    { x: 1763, y: 1137, action: 'scroll-profiles',  label: 'SCROLL PROFILES'      },
+    { x: 1953, y: 1137, action: 'num',              label: '0',                   val: '0' },
+    { x: 2143, y: 1137, action: 'blank',            label: 'BLANK'                },
+    { x: 2333, y: 1137, action: 'score',            label: 'GUEST SCORE',         team: 'guest' },
+  ];
+
+  function buildKeypad() {
+    const container = document.getElementById('ctrl-buttons');
+    if (!container) return;
+    const widthPct  = (KEY_W / KEYPAD_IMAGE_W) * 100;
+    const heightPct = (KEY_H / KEYPAD_IMAGE_H) * 100;
+
+    for (const k of KEYPAD_LAYOUT) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'hot';
+      btn.setAttribute('aria-label', k.label);
+      btn.dataset.action = k.action;
+      if (k.team) btn.dataset.team = k.team;
+      if (k.val != null) btn.dataset.val = k.val;
+      if (k.id) btn.id = k.id;
+      btn.style.left   = ((k.x / KEYPAD_IMAGE_W) * 100).toFixed(4) + '%';
+      btn.style.top    = ((k.y / KEYPAD_IMAGE_H) * 100).toFixed(4) + '%';
+      btn.style.width  = widthPct.toFixed(4) + '%';
+      btn.style.height = heightPct.toFixed(4) + '%';
+      container.appendChild(btn);
+    }
+  }
+
+  // ---------------------------------------------------------------
   // UI bindings
   // ---------------------------------------------------------------
 
@@ -824,7 +913,16 @@
       btn.addEventListener('click', (e) => {
         e.preventDefault();
         ensureAudio();
-        doAction(action, btn.dataset.val, btn.dataset.team);
+        // The MPCW-7 has no dedicated HOME / GUEST key. Team is encoded by
+        // column: any column-2 key (data-team="home") selects HOME, any
+        // column-3 key (data-team="guest") selects GUEST. While an action
+        // is waiting for a team, route the press to pressTeam() and
+        // suppress the key's own function.
+        if (state.entry && state.entry.kind === 'await-team' && btn.dataset.team) {
+          pressTeam(btn.dataset.team);
+        } else {
+          doAction(action, btn.dataset.val, btn.dataset.team);
+        }
         btn.classList.add('pressed');
         setTimeout(() => btn.classList.remove('pressed'), 90);
       });
@@ -908,6 +1006,11 @@
   // ---------------------------------------------------------------
 
   function init() {
+    buildKeypad();
+    // The HORN and SET buttons are created dynamically, so refresh refs that
+    // were nulled by the initial getElementById calls.
+    els.setBtn = document.getElementById('set-button');
+    els.hornButton = document.getElementById('horn-button');
     bindKeypad();
     bindKeyboard();
     requestAnimationFrame((t) => { lastTick = t; tick(t); });
