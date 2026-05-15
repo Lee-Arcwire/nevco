@@ -8,10 +8,10 @@
 * { box-sizing: border-box; }
 
 :root {
-  --sb-board:        #6b2222;
-  --sb-board-edge:   #2a0a0a;
-  --sb-window-bg:    #050000;
-  --sb-window-edge:  #1a0808;
+  --sb-board:        #18345e;
+  --sb-board-edge:   #0a1830;
+  --sb-window-bg:    #02060d;
+  --sb-window-edge:  #0a1426;
 
   --led-amber-on:    #ff8a20;
   --led-amber-glow:  rgba(255, 138, 32, 0.7);
@@ -52,17 +52,17 @@ html, body {
   width: 100%;
   max-width: 1280px;
   background:
-    radial-gradient(ellipse at top, #7a2a2a 0%, var(--sb-board) 55%, #561818 100%);
+    radial-gradient(ellipse at top, #1f4378 0%, var(--sb-board) 55%, #0e2349 100%);
   border: 3px solid var(--sb-board-edge);
   border-radius: 4px;
-  padding: 14px 20px;
+  padding: 10px 16px;
   box-shadow:
     inset 0 0 60px rgba(0, 0, 0, 0.45),
     0 8px 24px rgba(0, 0, 0, 0.55);
   display: grid;
   grid-template-columns: auto auto 1fr auto auto;
   align-items: center;
-  gap: 18px;
+  gap: 14px;
 }
 
 /* ---- Digit windows (shared by amber & red variants) ---- */
@@ -76,7 +76,7 @@ html, body {
   background: var(--sb-window-bg);
   border: 1px solid var(--sb-window-edge);
   border-radius: 3px;
-  padding: 5px 8px;
+  padding: 4px 6px;
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.95);
 }
 
@@ -106,12 +106,16 @@ html, body {
     0 0 22px var(--led-glow);
 }
 
-.seg-1     { font-size: 42px; min-width: 0.7em; }
-.seg-2     { font-size: 42px; min-width: 1.4em; }
-.seg-4     { font-size: 28px; min-width: 2.6em; }
-.seg-clock { font-size: 64px; min-width: 2.9em; }
-.seg-score { font-size: 60px; }   /* Home / Guests score digits */
-.seg-shot  { font-size: 30px; }   /* Home / Guest shots digits */
+/* Size hierarchy modelled on the 4760 reference: clock dominates, then
+   score (~80% of clock), player & penalty time (~55-60%), period (~50%),
+   shots (~40%). */
+.seg-1     { font-size: 46px; min-width: 0.7em; }   /* player # default */
+.seg-2     { font-size: 46px; min-width: 1.4em; }   /* player # default */
+.seg-4     { font-size: 40px; min-width: 2.6em; }   /* penalty time */
+.seg-clock { font-size: 84px; min-width: 2.9em; }   /* main clock */
+.seg-score { font-size: 68px; }                     /* home / guests score */
+.seg-shot  { font-size: 34px; }                     /* shots on goal digits */
+.sb-period-row .seg-1 { font-size: 42px; }          /* period (slightly smaller than player) */
 
 /* ---- Label plaques ("player", "penalty", "Home", "period", etc.) ---- */
 
@@ -392,24 +396,26 @@ html, body {
 
 /* ==================== RESPONSIVE ==================== */
 
-@media (max-width: 900px) {
-  .seg-1     { font-size: 34px; }
-  .seg-2     { font-size: 34px; }
-  .seg-4     { font-size: 22px; }
-  .seg-clock { font-size: 48px; }
-  .seg-score { font-size: 44px; }
-  .seg-shot  { font-size: 24px; }
-  .sb-board  { gap: 10px; padding: 10px 12px; }
+@media (max-width: 1000px) {
+  .seg-1     { font-size: 36px; }
+  .seg-2     { font-size: 36px; }
+  .seg-4     { font-size: 30px; }
+  .seg-clock { font-size: 62px; }
+  .seg-score { font-size: 50px; }
+  .seg-shot  { font-size: 26px; }
+  .sb-period-row .seg-1 { font-size: 32px; }
+  .sb-board  { gap: 8px; padding: 8px 10px; }
   .sb-tag    { font-size: 11px; padding: 1px 6px; }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 680px) {
   .seg-1     { font-size: 26px; }
   .seg-2     { font-size: 26px; }
-  .seg-4     { font-size: 16px; }
-  .seg-clock { font-size: 34px; }
-  .seg-score { font-size: 32px; }
+  .seg-4     { font-size: 20px; }
+  .seg-clock { font-size: 42px; }
+  .seg-score { font-size: 34px; }
   .seg-shot  { font-size: 18px; }
-  .sb-board  { gap: 6px; padding: 8px; }
+  .sb-period-row .seg-1 { font-size: 22px; }
+  .sb-board  { gap: 6px; padding: 6px 8px; }
   .sb-tag    { font-size: 10px; padding: 1px 4px; }
 }
