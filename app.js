@@ -8,10 +8,14 @@
        to abort.
      - Outside SET mode the same field keys directly increment.
      - TIME ON / TIME OFF start / stop the game clock (separate keys).
-     - NEW MINOR / NEW MAJOR add a 2:00 / 5:00 penalty for that team;
-       you are then asked for the player number (digits + ENTER).
-     - INSERT PENALTY waits for a team key (HOME / GUESTS), then
-       player # ENTER, then duration MMSS or MSS ENTER.
+     - NEW MINOR / NEW MAJOR arms a manual penalty entry for that team:
+       type 2-digit player # (leading zero if a single digit), then
+       4-digit penalty time MMSS (leading zero if < 10 minutes), then
+       ENTER to commit. The minor / major label is recorded but no
+       longer auto-fills the time.
+     - INSERT PENALTY waits for a team key (column 2 = HOME, column 3
+       = GUEST), then the same 2-digit player # / 4-digit MMSS / ENTER
+       sequence.
      - CLEAR PENALTY waits for team key, then 1 or 2 to clear that slot.
      - PENALTY ON / OFF pauses / resumes penalty countdown.
      - HORN is press-and-hold (manual horn). Auto-horn fires at clock 0.
@@ -46,8 +50,6 @@
   const MAX_SAVES = 99;
   const MAX_TOL = 9;
   const MAX_PENALTY_QUEUE = 6;
-  const MINOR_MS = 2 * 60 * 1000;
-  const MAJOR_MS = 5 * 60 * 1000;
   const FLASH_MS = 1200;
   const GOAL_LIGHT_MS = 4000;
   const AUTO_HORN_MS = 3000;
@@ -315,8 +317,8 @@
       case 'shots':    return `[data-action="goal-shots"][data-team="${entry.team}"]`;
       case 'saves':    return `[data-action="goal-saves"][data-team="${entry.team}"]`;
       case 'penalty':
-        if (entry.minor) return `[data-action="new-minor"][data-team="${entry.team}"]`;
-        if (entry.major) return `[data-action="new-major"][data-team="${entry.team}"]`;
+        if (entry.kindType === 'minor') return `[data-action="new-minor"][data-team="${entry.team}"]`;
+        if (entry.kindType === 'major') return `[data-action="new-major"][data-team="${entry.team}"]`;
         return '[data-action="insert-penalty"]';
       case 'await-team':  return `[data-action="${entry.then}"]`;
       case 'clear-slot':  return '[data-action="clear-penalty"]';
@@ -334,10 +336,12 @@
       case 'tol':     return `${e.team.toUpperCase()} T.O.L. · enter, ENTER`;
       case 'penalty':
         if (e.phase === 'player') {
-          const tag = e.minor ? 'MINOR' : (e.major ? 'MAJOR' : 'PEN');
-          return `${e.team.toUpperCase()} ${tag} · player # ENTER`;
+          const tag = e.kindType === 'minor' ? 'MINOR'
+                    : e.kindType === 'major' ? 'MAJOR'
+                    : 'PEN';
+          return `${e.team.toUpperCase()} ${tag} · 2-digit player #`;
         }
-        return `${e.team.toUpperCase()} PEN · MMSS / MSS, ENTER`;
+        return `${e.team.toUpperCase()} #${pad2(e.player)} · 4-digit MMSS, ENTER`;
       case 'await-team':
         return `Press HOME or GUESTS to select team`;
       case 'clear-slot':
@@ -528,14 +532,19 @@
       flashLed('PEN FULL');
       return;
     }
+    // Operator types the penalty in order:
+    //   (1) 2-digit player # (leading zero required for single-digit #)
+    //   (2) 4-digit penalty time MMSS (leading zero required for < 10 min)
+    //   (3) ENTER to commit
+    // After the second digit the entry auto-advances from the player phase
+    // to the time phase. The minor/major distinction is recorded but no
+    // longer auto-fills the time.
     arm({
       kind: 'penalty',
       team,
       phase: 'player',
+      kindType: kind,
       player: null,
-      duration: kind === 'minor' ? MINOR_MS : MAJOR_MS,
-      minor: kind === 'minor',
-      major: kind === 'major',
     });
   }
 
@@ -616,6 +625,22 @@
       }
       return;
     }
+    // Penalty entry uses fixed-width fields and auto-advances from the
+    // 2-digit player phase to the 4-digit time phase.
+    if (e.kind === 'penalty') {
+      if (e.phase === 'player') {
+        if (state.buffer.length < 2) state.buffer += d;
+        if (state.buffer.length === 2) {
+          e.player = parseInt(state.buffer, 10);
+          state.buffer = '';
+          e.phase = 'time';
+        }
+        return;
+      }
+      // phase === 'time'
+      if (state.buffer.length < 4) state.buffer += d;
+      return;
+    }
     const max = numericMaxLen(e);
     if (state.buffer.length < max) state.buffer += d;
   }
@@ -684,19 +709,15 @@
       }
       case 'penalty': {
         if (e.phase === 'player') {
-          const player = parseInt(buf, 10);
-          if (Number.isNaN(player) || player < 0 || player > 99) {
-            flashLed('BAD #');
-            return;
-          }
-          if (e.duration != null) {
-            state[e.team].penalties.push({ player, remainingMs: e.duration });
-            cancelEntry();
-            flashLed(`${e.team === 'home' ? 'H' : 'G'}-PEN`);
-            return;
-          }
-          state.entry = { kind: 'penalty', team: e.team, phase: 'time', player };
-          state.buffer = '';
+          // pressNum auto-advances from 'player' to 'time' once two digits
+          // have been entered. Hitting ENTER while still in 'player' means
+          // the operator pressed ENTER before completing the player number.
+          flashLed('NEED PLR');
+          return;
+        }
+        // phase === 'time' - require all four MMSS digits.
+        if (buf.length !== 4) {
+          flashLed('NEED MMSS');
           return;
         }
         const ms = parseTimeDigits(buf);
