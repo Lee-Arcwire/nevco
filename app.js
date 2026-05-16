@@ -66,16 +66,28 @@
     clockRunning: false,
     hornOn: false,
     hornManual: false,
-    autoHorn: true,
     autoHornUntil: 0,
     setMode: false,         // true when SET has been pressed (awaits a field)
     entry: null,            // current numeric-entry context
-    buffer: '',             // digits typed
+    buffer: '',             // digits typed (game entry OR menu edit)
     penaltyPaused: false,
     blanked: false,
     goalLightUntil: 0,
     flash: null,            // transient LED message
     flashUntil: 0,
+    // Persisted OPTIONS menu values. Saved to localStorage on change.
+    // See MPC7_Hockey_135-0222.PDF for the menu structure these mirror.
+    options: {
+      penaltyButtonEnabled: true,    // Penalties > Enable Button
+      minorPenaltyMs:       2 * 60 * 1000,
+      majorPenaltyMs:       5 * 60 * 1000,
+      countDown:            true,    // Main Time > Direction (true = down)
+      autoHorn:             true,    // Main Time > Auto Horn
+      disableTenths:        false,   // Main Time > Disable .1
+      brightness:           'High',  // Brightness ('High' | 'Low')
+    },
+    // OPTIONS menu navigation state. null when no menu is open.
+    menu: null,
   };
 
   // Entry contexts:
@@ -173,7 +185,8 @@
 
   function formatClock(ms) {
     if (ms < 0) ms = 0;
-    if (ms >= 60 * 1000) {
+    // OPTIONS > Main Time > Disable .1: forces MM:SS regardless of remaining.
+    if (state.options.disableTenths || ms >= 60 * 1000) {
       const total = Math.ceil(ms / 1000);
       const m = Math.floor(total / 60);
       const s = total % 60;
@@ -270,6 +283,9 @@
       els.setBtn.classList.toggle('armed', state.setMode && !state.entry);
     }
 
+    // OPTIONS > Brightness toggles dim variants of the LED colours.
+    document.body.classList.toggle('brightness-low', state.options.brightness === 'Low');
+
     // LED text
     els.led.textContent = ledText();
 
@@ -306,6 +322,7 @@
   function ledText() {
     if (state.flash && Date.now() < state.flashUntil) return state.flash;
     if (state.blanked) return 'BLANK';
+    if (state.menu) return menuLedText();
     if (!state.entry) {
       if (state.setMode) return 'SET';
       if (state.clockRunning) return formatClock(state.timeMs);
@@ -333,6 +350,29 @@
     return 'READY';
   }
 
+  function menuLedText() {
+    const m = state.menu;
+    const top = OPTIONS_MENU[m.topIdx];
+    // Sub-menu suffix on labels with items - matches the manual's "Penalties >>"
+    const arrow = (it) => it.items ? ` >>` : '';
+
+    if (m.subIdx == null) {
+      if (top.type === 'cycle') return `${top.label}: ${top.get()}`;
+      return `${top.label}${arrow(top)}`;
+    }
+
+    const item = top.items[m.subIdx];
+    const buf = state.buffer || '';
+    if (m.editing === 'time4') return `${item.label} ${previewTime(buf)}◄`;
+    if (m.editing === 'numeric') return `${item.label} ${buf || '_'}◄`;
+
+    if (item.type === 'toggle')  return item.get() ? `${item.label}*` : item.label;
+    if (item.type === 'arrow')   return `${item.label}: ${item.get() ? '▼' : '▲'}`;
+    if (item.type === 'time4')   return `${item.label} ${formatPenaltyTime(item.get())}`;
+    if (item.type === 'numeric') return `${item.label} ${item.get()}`;
+    return item.label;
+  }
+
   // ---------------------------------------------------------------
   // Tick loop
   // ---------------------------------------------------------------
@@ -344,11 +384,16 @@
     lastTick = now;
 
     if (state.clockRunning) {
-      state.timeMs -= dt;
-      if (state.timeMs <= 0) {
-        state.timeMs = 0;
-        state.clockRunning = false;
-        if (state.autoHorn) state.autoHornUntil = Date.now() + AUTO_HORN_MS;
+      // OPTIONS > Main Time > Direction: ▼ counts down, ▲ counts up.
+      if (state.options.countDown) {
+        state.timeMs -= dt;
+        if (state.timeMs <= 0) {
+          state.timeMs = 0;
+          state.clockRunning = false;
+          if (state.options.autoHorn) state.autoHornUntil = Date.now() + AUTO_HORN_MS;
+        }
+      } else {
+        state.timeMs += dt;
       }
       if (!state.penaltyPaused) {
         tickPenalties(state.home.penalties,  dt);
@@ -527,6 +572,13 @@
   }
 
   function pressPenaltyOnOff() {
+    // OPTIONS > Penalties > Enable Button gates this key. When disabled
+    // the controller ignores it (per the manual: used in little-league
+    // games where the operator never wants to pause penalty countdowns).
+    if (!state.options.penaltyButtonEnabled) {
+      flashLed('PEN BTN OFF');
+      return;
+    }
     state.penaltyPaused = !state.penaltyPaused;
     flashLed(state.penaltyPaused ? 'PEN OFF' : 'PEN ON');
   }
@@ -561,6 +613,7 @@
   }
 
   function pressNum(d) {
+    if (pressMenuNum(d)) return;
     const e = state.entry;
     if (!e) return;
     if (e.kind === 'await-team') return;
@@ -612,6 +665,7 @@
   }
 
   function pressCancel() {
+    if (pressMenuCancel()) return;
     if (state.entry) {
       cancelEntry();
     } else if (state.setMode) {
@@ -620,6 +674,7 @@
   }
 
   function pressEnter() {
+    if (pressMenuYes()) return;
     const e = state.entry;
     if (!e) return;
     const buf = state.buffer;
@@ -707,8 +762,178 @@
     flashLed('GL RST');
   }
 
+  // ---------------------------------------------------------------
+  // OPTIONS menu
+  // ---------------------------------------------------------------
+  // Structure follows the MPC7 hockey manual (MPC7_Hockey_135-0222.PDF):
+  //   - Each top-level entry is either a leaf (with `type`) or a sub-menu
+  //     (with `items`).
+  //   - Navigation: OPTIONS = enter / next, YES = drill / toggle / start
+  //     edit / confirm, NO/CANCEL = exit edit / back up / close menu.
+  //   - Persisted via localStorage (key 'nevco-options').
+
+  const OPTIONS_MENU = [
+    {
+      label: 'Penalties',
+      items: [
+        { label: 'Enable Button', type: 'toggle',
+          get: () => state.options.penaltyButtonEnabled,
+          set: (v) => state.options.penaltyButtonEnabled = v },
+        { label: 'Minor Pen',     type: 'time4',
+          get: () => state.options.minorPenaltyMs,
+          set: (ms) => state.options.minorPenaltyMs = ms },
+        { label: 'Major Pen',     type: 'time4',
+          get: () => state.options.majorPenaltyMs,
+          set: (ms) => state.options.majorPenaltyMs = ms },
+      ],
+    },
+    {
+      label: 'Main Time',
+      items: [
+        { label: 'Direction',     type: 'arrow',
+          get: () => state.options.countDown,
+          set: (v) => state.options.countDown = v },
+        { label: 'Auto Horn',     type: 'toggle',
+          get: () => state.options.autoHorn,
+          set: (v) => state.options.autoHorn = v },
+        { label: 'Disable .1',    type: 'toggle',
+          get: () => state.options.disableTenths,
+          set: (v) => state.options.disableTenths = v },
+      ],
+    },
+    {
+      label: 'Brightness', type: 'cycle', values: ['High', 'Low'],
+      get: () => state.options.brightness,
+      set: (v) => state.options.brightness = v,
+    },
+    {
+      label: 'Swap H&G', type: 'action',
+      do: () => { swapHomeAndGuest(); flashLed('SWAPPED'); },
+    },
+    {
+      label: 'Time of Day', type: 'action',
+      do: () => flashLed(formatWallClock(), 3000),
+    },
+  ];
+
+  function loadOptions() {
+    try {
+      const raw = localStorage.getItem('nevco-options');
+      if (raw) Object.assign(state.options, JSON.parse(raw));
+    } catch (_) { /* ignore: incognito / blocked storage */ }
+  }
+
+  function persistOptions() {
+    try {
+      localStorage.setItem('nevco-options', JSON.stringify(state.options));
+    } catch (_) { /* ignore */ }
+  }
+
+  function swapHomeAndGuest() {
+    const h = state.home;
+    state.home = state.guest;
+    state.guest = h;
+  }
+
+  function currentMenuItem() {
+    const m = state.menu;
+    if (!m) return null;
+    const top = OPTIONS_MENU[m.topIdx];
+    if (m.subIdx == null) return top;
+    return top.items[m.subIdx];
+  }
+
   function pressOptions() {
-    flashLed('OPTIONS');
+    // OPTIONS enters the menu, then scrolls inside it. While editing a
+    // value it cancels the in-flight edit (matches the manual which only
+    // documents YES / NO behaviour while editing).
+    if (!state.menu) {
+      state.menu = { topIdx: 0, subIdx: null, editing: null };
+      state.buffer = '';
+      return;
+    }
+    const m = state.menu;
+    if (m.editing) {
+      m.editing = null;
+      state.buffer = '';
+      return;
+    }
+    if (m.subIdx != null) {
+      const top = OPTIONS_MENU[m.topIdx];
+      m.subIdx = (m.subIdx + 1) % top.items.length;
+      return;
+    }
+    m.topIdx = (m.topIdx + 1) % OPTIONS_MENU.length;
+  }
+
+  function pressMenuYes() {
+    const m = state.menu;
+    if (!m) return false;
+    if (m.editing) { commitMenuEdit(); return true; }
+    const item = currentMenuItem();
+    if (m.subIdx == null) {
+      // At a top-level entry.
+      if (item.items) { m.subIdx = 0; return true; }
+      if (item.type === 'cycle') {
+        const cur = item.get();
+        const i = item.values.indexOf(cur);
+        item.set(item.values[(i + 1) % item.values.length]);
+        persistOptions();
+        return true;
+      }
+      if (item.type === 'action') { item.do(); return true; }
+      return true;
+    }
+    // Inside a sub-menu.
+    if (item.type === 'toggle' || item.type === 'arrow') {
+      item.set(!item.get());
+      persistOptions();
+      return true;
+    }
+    if (item.type === 'time4' || item.type === 'numeric') {
+      m.editing = item.type;
+      state.buffer = '';
+      return true;
+    }
+    if (item.type === 'action') { item.do(); return true; }
+    return true;
+  }
+
+  function commitMenuEdit() {
+    const m = state.menu;
+    const item = currentMenuItem();
+    const buf = state.buffer;
+    if (m.editing === 'time4') {
+      if (buf.length !== 4) { flashLed('NEED MMSS'); return; }
+      const ms = parseTimeDigits(buf);
+      if (ms == null || ms < 0) { flashLed('BAD TIME'); return; }
+      item.set(ms);
+    } else if (m.editing === 'numeric') {
+      const n = parseInt(buf, 10);
+      if (Number.isNaN(n)) { flashLed('BAD #'); return; }
+      item.set(n);
+    }
+    persistOptions();
+    m.editing = null;
+    state.buffer = '';
+  }
+
+  function pressMenuCancel() {
+    const m = state.menu;
+    if (!m) return false;
+    if (m.editing) { m.editing = null; state.buffer = ''; return true; }
+    if (m.subIdx != null) { m.subIdx = null; state.buffer = ''; return true; }
+    state.menu = null;
+    state.buffer = '';
+    return true;
+  }
+
+  function pressMenuNum(d) {
+    const m = state.menu;
+    if (!m || !m.editing) return false;
+    const max = m.editing === 'time4' ? 4 : 4;
+    if (state.buffer.length < max) state.buffer += d;
+    return true;
   }
 
   function pressScrollProfiles() {
@@ -978,6 +1203,7 @@
   // ---------------------------------------------------------------
 
   function init() {
+    loadOptions();
     buildKeypad();
     // The HORN and SET buttons are created dynamically, so refresh refs that
     // were nulled by the initial getElementById calls.

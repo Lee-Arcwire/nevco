@@ -24,6 +24,16 @@
   --led-window-bg:   #15090a;
 }
 
+/* OPTIONS > Brightness = Low dims the LED on / glow colour variants.
+   The class is toggled on <body> by renderController() based on
+   state.options.brightness. */
+body.brightness-low {
+  --led-amber-on:    #b66318;
+  --led-amber-glow:  rgba(255, 138, 32, 0.22);
+  --led-red-on:      #a82a14;
+  --led-red-glow:    rgba(255, 58, 26, 0.22);
+}
+
 html, body {
   margin: 0;
   padding: 0;
