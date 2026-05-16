@@ -512,9 +512,25 @@
     switch (e.kind) {
       case 'clock':   return `Time: ${previewClockMMSSS(buf)}◄`;
       case 'period':  return `PER ${buf || '-'}`;
-      case 'score':   return `${e.team === 'home' ? 'HSC' : 'GSC'} ${buf.padStart(3, '-')}`;
-      case 'shots':   return `${e.team === 'home' ? 'HSH' : 'GSH'} ${buf.padStart(3, '-')}`;
-      case 'saves':   return `${e.team === 'home' ? 'HSV' : 'GSV'} ${buf.padStart(3, '-')}`;
+      // SET + HOME/GUEST {SCORE|SHOTS|SAVES}: show the same '## Word ##'
+      // layout the manual prints for add mode, but with the cursor symbol
+      // (◄/►) on the side being set instead of the '+'. e.g.
+      //   SET + HOME SCORE  -> '13◄ Score 4'
+      //   SET + GUEST SCORE -> '4 Score ►13'
+      // The typed buffer replaces the value on the cursor side; the other
+      // team's value continues to display the current state.
+      case 'score':
+      case 'shots':
+      case 'saves': {
+        const word = e.kind === 'score' ? 'Score'
+                   : e.kind === 'shots' ? 'Shots'
+                   : 'Saves';
+        const homeVal  = e.team === 'home' && buf ? buf : pad2(state.home[e.kind]);
+        const guestVal = e.team === 'guest' && buf ? buf : pad2(state.guest[e.kind]);
+        return e.team === 'home'
+          ? `${homeVal}◄ ${word} ${guestVal}`
+          : `${homeVal} ${word} ►${guestVal}`;
+      }
       case 'tol':     return `${e.team === 'home' ? 'HTO' : 'GTO'} ${buf || '-'}`;
       // Manual: ##+ Score ## (home) / ## Score +## (guest). Reuse short
       // labels for our small LED window: SC/SH/SV with a side-coded +.
