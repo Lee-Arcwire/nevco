@@ -64,6 +64,10 @@
     period: 1,
     timeMs: PERIOD_DEFAULT_MS,
     clockRunning: false,
+    // Segment timer runs alongside the game clock so the operator can use
+    // an interval horn during live play. Disp On Board controls which one
+    // is shown on the scoreboard / LED.
+    segmentTimeMs: 0,
     hornOn: false,
     hornManual: false,
     autoHornUntil: 0,
@@ -336,8 +340,11 @@
       els.homeShots.textContent  = pad2(state.home.shots);
       els.guestShots.textContent = pad2(state.guest.shots);
       els.period.textContent     = String(state.period);
-      els.time.textContent       = formatClock(state.timeMs);
-      els.timeBg.textContent     = state.timeMs < 60 * 1000 ? '88.8' : '88:88';
+      // Disp On Board: dedicate the scoreboard time to the segment timer.
+      const showSegment = state.options.segmentEnabled && state.options.segmentDispOnBoard;
+      const displayMs   = showSegment ? state.segmentTimeMs : state.timeMs;
+      els.time.textContent       = formatClock(displayMs);
+      els.timeBg.textContent     = displayMs < 60 * 1000 ? '88.8' : '88:88';
       renderPenaltySlots(els.homePen,  state.home.penalties);
       renderPenaltySlots(els.guestPen, state.guest.penalties);
     }
@@ -410,8 +417,8 @@
     if (state.menu) return menuLedText();
     if (!state.entry) {
       if (state.setMode) return 'SET';
-      if (state.clockRunning) return formatClock(state.timeMs);
-      return formatClock(state.timeMs);
+      const showSegment = state.options.segmentEnabled && state.options.segmentDispOnBoard;
+      return formatClock(showSegment ? state.segmentTimeMs : state.timeMs);
     }
     const e = state.entry;
     const buf = state.buffer || '';
@@ -444,22 +451,19 @@
 
   function menuLedText() {
     const m = state.menu;
-    const top = OPTIONS_MENU[m.topIdx];
-    // Sub-menu suffix on labels with items - matches the manual's "Penalties >>"
-    const arrow = (it) => it.items ? ` >>` : '';
-
-    if (m.subIdx == null) {
-      if (top.type === 'cycle') return `${itemLabel(top)}: ${top.get()}`;
-      return `${itemLabel(top)}${arrow(top)}`;
-    }
-
-    const item = top.items[m.subIdx];
+    const item = currentMenuItem();
     const lbl = itemLabel(item);
     const buf = state.buffer || '';
+    // Sub-menu suffix on items-bearing nodes - matches the manual's "Penalties >>"
+    const arrow = (it) => it.items ? ` >>` : '';
+
     if (m.editing === 'time4')   return `${lbl} ${previewTime(buf)}◄`;
     if (m.editing === 'time5')   return `${lbl} ${previewTime5(buf)}◄`;
     if (m.editing === 'digit')   return `${lbl}: ${buf || '_'}◄`;
     if (m.editing === 'numeric') return `${lbl} ${buf || '_'}◄`;
+
+    if (item.items)              return `${lbl}${arrow(item)}`;
+    if (item.type === 'cycle')   return `${lbl}: ${item.get()}`;
 
     if (item.type === 'toggle')  return item.get() ? `${lbl}*` : lbl;
     if (item.type === 'arrow')   return `${lbl}: ${item.get() ? '▼' : '▲'}`;
@@ -481,24 +485,32 @@
     lastTick = now;
 
     if (state.clockRunning) {
-      // Segment Timer overrides Main Time > Direction: segments always
-      // count down per the manual. The Direction option only applies to
-      // the regular game clock.
-      const countingDown = state.options.segmentEnabled || state.options.countDown;
-      if (countingDown) {
-        state.timeMs -= dt;
-        if (state.timeMs <= 0) {
-          state.timeMs = 0;
-          if (state.options.segmentEnabled) {
-            handleSegmentEnd();
-          } else {
+      // Segment clock (always counts down per the manual; the Main Time
+      // Direction option doesn't apply to segments).
+      if (state.options.segmentEnabled && state.segmentTimeMs > 0) {
+        state.segmentTimeMs -= dt;
+        if (state.segmentTimeMs <= 0) {
+          state.segmentTimeMs = 0;
+          handleSegmentEnd();
+        }
+      }
+
+      // Game clock - paused while Disp On Board is on so the scoreboard
+      // is dedicated to segment display (practice mode).
+      const segmentOnly = state.options.segmentEnabled && state.options.segmentDispOnBoard;
+      if (!segmentOnly) {
+        if (state.options.countDown) {
+          state.timeMs -= dt;
+          if (state.timeMs <= 0) {
+            state.timeMs = 0;
             state.clockRunning = false;
             if (state.options.autoHorn) state.autoHornUntil = Date.now() + AUTO_HORN_MS;
           }
+        } else {
+          state.timeMs += dt;
         }
-      } else {
-        state.timeMs += dt;
       }
+
       if (!state.penaltyPaused) {
         tickPenalties(state.home.penalties,  dt);
         tickPenalties(state.guest.penalties, dt);
@@ -553,7 +565,7 @@
     state.setMode = !state.setMode;
   }
 
-  // Segment Timer: load the current segment's time into state.timeMs.
+  // Segment Timer: load the current segment's time into state.segmentTimeMs.
   // 0:00 slots are treated as "unused" per the manual and skipped over.
   // Returns true if a non-zero segment was loaded.
   function loadActiveSegment() {
@@ -565,7 +577,7 @@
           state.options.currentSegIdx = j;
           persistOptions();
         }
-        state.timeMs = segs[j].timeMs;
+        state.segmentTimeMs = segs[j].timeMs;
         return true;
       }
     }
@@ -574,12 +586,13 @@
 
   // Called when the segment clock reaches 0:00. Fires Auto Horn for that
   // segment if enabled, then advances to the next non-zero segment if
-  // Auto Advance is enabled (otherwise pauses the clock at 0).
+  // Auto Advance is enabled (otherwise leaves the segment paused at 0;
+  // the game clock keeps running if it has time and Disp On Board is off).
   function handleSegmentEnd() {
     const seg = state.options.segments[state.options.currentSegIdx];
     if (seg.autoHorn) state.autoHornUntil = Date.now() + AUTO_HORN_MS;
     if (!seg.autoAdvance) {
-      state.clockRunning = false;
+      // Leave segmentTimeMs at 0; next TIME ON loads the next non-zero seg.
       return;
     }
     const segs = state.options.segments;
@@ -587,24 +600,30 @@
       const idx = (state.options.currentSegIdx + i) % segs.length;
       if (segs[idx].timeMs > 0) {
         state.options.currentSegIdx = idx;
-        state.timeMs = segs[idx].timeMs;
+        state.segmentTimeMs = segs[idx].timeMs;
         persistOptions();
         return;
       }
     }
     // No other non-zero segment in the project - hold at 0.
-    state.clockRunning = false;
   }
 
   function pressTimeOn() {
     cancelEntry();
     state.setMode = false;
-    // Segment Timer: a fresh start (timeMs at 0) loads the active segment.
-    if (state.options.segmentEnabled && state.timeMs <= 0) {
-      if (!loadActiveSegment()) { flashLed('NO SEG'); return; }
+    // Segment Timer: pre-load the active segment if its clock has run down
+    // (or this is a fresh start).
+    if (state.options.segmentEnabled && state.segmentTimeMs <= 0) {
+      loadActiveSegment();
     }
-    if (state.timeMs <= 0) {
-      flashLed('NO TIME');
+    // In segment-only mode (Disp On Board on) the game clock is dormant;
+    // the segment alone must have time. Otherwise the game clock has to
+    // have time or there's nothing to count.
+    const segmentOnly = state.options.segmentEnabled && state.options.segmentDispOnBoard;
+    const segReady    = state.options.segmentEnabled && state.segmentTimeMs > 0;
+    const gameReady   = state.timeMs > 0;
+    if (segmentOnly ? !segReady : (!segReady && !gameReady)) {
+      flashLed(segmentOnly ? 'NO SEG' : 'NO TIME');
       return;
     }
     state.clockRunning = true;
@@ -1016,10 +1035,16 @@
       ],
     },
     // 6. Segment Timer -------------------------------------------------
-    // Per-segment fields ("Edit Segment" sub-sub-menu in the manual) are
-    // flattened here. "Next Seg" cycles which slot the per-slot fields
-    // read / write. Defaults seed an interval-horn (one segment of 1:00
-    // with Auto Horn + Auto Advance on).
+    // Manual: Main Menu has 3 items (Enable, Display on Scoreboard,
+    // Edit Segment). Edit Segment is a sub-menu with 6 items: Segment
+    // Main Time (MMSS), Auto Horn, Auto Advance, Next Segment, Insert
+    // Segment, Delete Segment. Per-segment leaves operate on the slot
+    // at state.options.currentSegIdx; Next/Insert/Delete change which
+    // slot that is.
+    //
+    // Defaults seed the manual's interval-horn project (one segment of
+    // 1:00 with Auto Horn + Auto Advance on; segments 2-20 are 0:00 and
+    // skipped per the manual's "project length less than 20" note).
     {
       label: 'Segment Timer',
       items: [
@@ -1027,31 +1052,61 @@
           get: () => state.options.segmentEnabled,
           set: (v) => {
             state.options.segmentEnabled = v;
-            if (v) {
-              // Reset the clock so the next TIME ON loads a fresh segment
-              // instead of resuming whatever game time was left over.
-              state.timeMs = 0;
-              state.clockRunning = false;
-            }
+            // Drop any in-flight segment time so the next TIME ON loads a
+            // fresh segment.
+            state.segmentTimeMs = 0;
           } },
         { label: 'Disp On Board', type: 'toggle',
           get: () => state.options.segmentDispOnBoard,
           set: (v) => state.options.segmentDispOnBoard = v },
-        { labelFn: () => `Seg ${state.options.currentSegIdx + 1} Time`, type: 'time5',
-          get: () => state.options.segments[state.options.currentSegIdx].timeMs,
-          set: (ms) => state.options.segments[state.options.currentSegIdx].timeMs = ms },
-        { label: 'Auto Horn', type: 'toggle',
-          get: () => state.options.segments[state.options.currentSegIdx].autoHorn,
-          set: (v) => state.options.segments[state.options.currentSegIdx].autoHorn = v },
-        { label: 'Auto Adv',  type: 'toggle',
-          get: () => state.options.segments[state.options.currentSegIdx].autoAdvance,
-          set: (v) => state.options.segments[state.options.currentSegIdx].autoAdvance = v },
-        { label: 'Next Seg',  type: 'action',
-          do: () => {
-            state.options.currentSegIdx = (state.options.currentSegIdx + 1) % state.options.segments.length;
-            persistOptions();
-            flashLed(`SEG ${state.options.currentSegIdx + 1}`, 800);
-          } },
+        {
+          label: 'Edit Segment',
+          items: [
+            // Segment Main Time: 4-digit MMSS, auto-accepts on the 4th digit.
+            { labelFn: () => `Seg: ${state.options.currentSegIdx + 1}`, type: 'time4',
+              get: () => state.options.segments[state.options.currentSegIdx].timeMs,
+              set: (ms) => state.options.segments[state.options.currentSegIdx].timeMs = ms },
+            // Auto Horn / Auto Adv read & write the current segment.
+            { labelFn: () => `Seg: ${state.options.currentSegIdx + 1} Auto Hrn`, type: 'toggle',
+              get: () => state.options.segments[state.options.currentSegIdx].autoHorn,
+              set: (v) => state.options.segments[state.options.currentSegIdx].autoHorn = v },
+            { labelFn: () => `Seg: ${state.options.currentSegIdx + 1} Auto Adv`, type: 'toggle',
+              get: () => state.options.segments[state.options.currentSegIdx].autoAdvance,
+              set: (v) => state.options.segments[state.options.currentSegIdx].autoAdvance = v },
+            // Next Segment: increments the index, wraps at 20 per manual.
+            { labelFn: () => `Seg: ${state.options.currentSegIdx + 1} Next Seg`, type: 'action',
+              do: () => {
+                state.options.currentSegIdx = (state.options.currentSegIdx + 1) % state.options.segments.length;
+                persistOptions();
+                flashLed(`SEG ${state.options.currentSegIdx + 1}`, 800);
+              } },
+            // Insert: push a fresh 0:00 segment in at the current position,
+            // shift the tail forward, drop anything past slot 20. Caller
+            // can then OPTIONS back to Segment Main Time to set the new
+            // segment's duration.
+            { label: 'Insert Segment', type: 'action',
+              do: () => {
+                const segs = state.options.segments;
+                const idx  = state.options.currentSegIdx;
+                segs.splice(idx, 0, { timeMs: 0, autoHorn: false, autoAdvance: false });
+                if (segs.length > 20) segs.length = 20;
+                persistOptions();
+                flashLed('INSERTED', 800);
+              } },
+            // Delete: remove the current segment, slide the tail back, pad
+            // the end with a 0:00 slot to keep the array at 20.
+            { label: 'Delete Segment', type: 'action',
+              do: () => {
+                const segs = state.options.segments;
+                const idx  = state.options.currentSegIdx;
+                segs.splice(idx, 1);
+                while (segs.length < 20) segs.push({ timeMs: 0, autoHorn: false, autoAdvance: false });
+                if (state.options.currentSegIdx >= segs.length) state.options.currentSegIdx = Math.max(0, segs.length - 1);
+                persistOptions();
+                flashLed('DELETED', 800);
+              } },
+          ],
+        },
       ],
     },
     // 7. Time Out Timer ------------------------------------------------
@@ -1167,13 +1222,9 @@
         timeMs: 60 * 1000, warningMs: 5 * 1000,
       }));
     }
-    // If segment timer was persisted as enabled, start fresh on load - the
-    // leftover game clock from a previous session would otherwise tick down
-    // as if it were a segment.
-    if (state.options.segmentEnabled) {
-      state.timeMs = 0;
-      state.clockRunning = false;
-    }
+    // segmentTimeMs is transient (not persisted); always start at 0 so the
+    // first TIME ON after a page load pulls the active segment fresh.
+    state.segmentTimeMs = 0;
   }
 
   function persistOptions() {
@@ -1188,20 +1239,33 @@
     state.guest = h;
   }
 
+  // Walk OPTIONS_MENU using state.menu.path. The path holds the index at
+  // each level so menus can nest arbitrarily deep.
   function currentMenuItem() {
     const m = state.menu;
-    if (!m) return null;
-    const top = OPTIONS_MENU[m.topIdx];
-    if (m.subIdx == null) return top;
-    return top.items[m.subIdx];
+    if (!m || m.path.length === 0) return null;
+    let node = { items: OPTIONS_MENU };
+    for (const i of m.path) {
+      if (!node.items) return null;
+      node = node.items[i];
+    }
+    return node;
+  }
+
+  function currentMenuSiblings() {
+    const m = state.menu;
+    if (!m || m.path.length === 0) return null;
+    let node = { items: OPTIONS_MENU };
+    for (let i = 0; i < m.path.length - 1; i++) node = node.items[m.path[i]];
+    return node.items;
   }
 
   function pressOptions() {
-    // OPTIONS enters the menu, then scrolls inside it. While editing a
-    // value it cancels the in-flight edit (matches the manual which only
-    // documents YES / NO behaviour while editing).
+    // OPTIONS enters the menu, then scrolls inside it at the current depth.
+    // While editing a value it cancels the edit (manual is silent on this
+    // - the YES / NO docs cover it; OPTIONS just gets out of edit mode).
     if (!state.menu) {
-      state.menu = { topIdx: 0, subIdx: null, editing: null };
+      state.menu = { path: [0], editing: null };
       state.buffer = '';
       return;
     }
@@ -1211,12 +1275,10 @@
       state.buffer = '';
       return;
     }
-    if (m.subIdx != null) {
-      const top = OPTIONS_MENU[m.topIdx];
-      m.subIdx = (m.subIdx + 1) % top.items.length;
-      return;
-    }
-    m.topIdx = (m.topIdx + 1) % OPTIONS_MENU.length;
+    const siblings = currentMenuSiblings();
+    if (!siblings) return;
+    const depth = m.path.length - 1;
+    m.path[depth] = (m.path[depth] + 1) % siblings.length;
   }
 
   function pressMenuYes() {
@@ -1224,25 +1286,27 @@
     if (!m) return false;
     if (m.editing) { commitMenuEdit(); return true; }
     const item = currentMenuItem();
-    if (m.subIdx == null) {
-      // At a top-level entry.
-      if (item.items) { m.subIdx = 0; return true; }
-      if (item.type === 'cycle') {
-        const cur = item.get();
-        const i = item.values.indexOf(cur);
-        item.set(item.values[(i + 1) % item.values.length]);
-        persistOptions();
-        return true;
-      }
-      if (item.type === 'action') { item.do(); return true; }
+    if (!item) return true;
+    // Drill into a sub-menu.
+    if (item.items) {
+      m.path.push(0);
       return true;
     }
-    // Inside a sub-menu.
+    // Cycle through preset values.
+    if (item.type === 'cycle') {
+      const cur = item.get();
+      const i = item.values.indexOf(cur);
+      item.set(item.values[(i + 1) % item.values.length]);
+      persistOptions();
+      return true;
+    }
+    // Toggle a flag.
     if (item.type === 'toggle' || item.type === 'arrow') {
       item.set(!item.get());
       persistOptions();
       return true;
     }
+    // Start a value edit.
     if (item.type === 'time4' || item.type === 'time5' || item.type === 'digit' || item.type === 'numeric') {
       m.editing = item.type;
       state.buffer = '';
@@ -1293,9 +1357,10 @@
     const m = state.menu;
     if (!m) return false;
     if (m.editing) { m.editing = null; state.buffer = ''; return true; }
-    if (m.subIdx != null) { m.subIdx = null; state.buffer = ''; return true; }
-    state.menu = null;
+    // Pop one level. Empty path means the menu closes.
+    m.path.pop();
     state.buffer = '';
+    if (m.path.length === 0) state.menu = null;
     return true;
   }
 
