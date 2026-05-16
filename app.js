@@ -497,15 +497,23 @@
       }
 
       // Game clock - paused while Disp On Board is on so the scoreboard
-      // is dedicated to segment display (practice mode).
+      // is dedicated to segment display (practice mode). Also paused (not
+      // re-triggering end-of-period) once already at 0 - otherwise a stale
+      // 0:00 main time would re-fire the period horn AND stop the segment
+      // clock the moment TIME ON is pressed.
       const segmentOnly = state.options.segmentEnabled && state.options.segmentDispOnBoard;
       if (!segmentOnly) {
         if (state.options.countDown) {
-          state.timeMs -= dt;
-          if (state.timeMs <= 0) {
-            state.timeMs = 0;
-            state.clockRunning = false;
-            if (state.options.autoHorn) state.autoHornUntil = Date.now() + AUTO_HORN_MS;
+          if (state.timeMs > 0) {
+            state.timeMs -= dt;
+            if (state.timeMs <= 0) {
+              state.timeMs = 0;
+              // Only stop the master clockRunning if the segment timer
+              // isn't carrying the session - otherwise we'd cut the
+              // segment off mid-interval.
+              if (!state.options.segmentEnabled) state.clockRunning = false;
+              if (state.options.autoHorn) state.autoHornUntil = Date.now() + AUTO_HORN_MS;
+            }
           }
         } else {
           state.timeMs += dt;
