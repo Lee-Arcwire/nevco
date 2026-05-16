@@ -932,88 +932,70 @@
   // ---------------------------------------------------------------
   // OPTIONS menu
   // ---------------------------------------------------------------
-  // Structure follows the MPC7 hockey manual (MPC7_Hockey_135-0222.PDF):
-  //   - Each top-level entry is either a leaf (with `type`) or a sub-menu
-  //     (with `items`).
-  //   - Navigation: OPTIONS = enter / next, YES = drill / toggle / start
-  //     edit / confirm, NO/CANCEL = exit edit / back up / close menu.
-  //   - Persisted via localStorage (key 'nevco-options').
+  // Structure follows the MPC7 hockey manual (MPC7_Hockey_135-0222.PDF).
+  // Page 23 lists exactly 13 top-level OPTIONS in this order:
+  //   1.  Brightness          6.  Segment Timer    11. Wireless
+  //   2.  Team Names          7.  Time Out Timer   12. Scoreboard Model
+  //   3.  Profiles            8.  Swap Home & Guests
+  //   4.  Main Time           9.  Aux Display      13. Time of Day
+  //   5.  Aux Time            10. Horn Settings
+  // Navigation: OPTIONS = next, YES = drill / toggle / edit / commit,
+  // NO/CANCEL = exit edit / back up / close. Persisted via localStorage
+  // (key 'nevco-options').
 
   const OPTIONS_MENU = [
+    // 1. Brightness ----------------------------------------------------
     {
-      label: 'Penalties',
+      label: 'Brightness', type: 'cycle', values: ['High', 'Low'],
+      get: () => state.options.brightness,
+      set: (v) => state.options.brightness = v,
+    },
+    // 2. Team Names ----------------------------------------------------
+    // Real device uses an alphanumeric keypad mode to enter names;
+    // sub-items are action stubs until that mode is implemented.
+    {
+      label: 'Team Names',
       items: [
-        { label: 'Enable Button', type: 'toggle',
-          get: () => state.options.penaltyButtonEnabled,
-          set: (v) => state.options.penaltyButtonEnabled = v },
-        { label: 'Minor Pen',     type: 'time4',
-          get: () => state.options.minorPenaltyMs,
-          set: (ms) => state.options.minorPenaltyMs = ms },
-        { label: 'Major Pen',     type: 'time4',
-          get: () => state.options.majorPenaltyMs,
-          set: (ms) => state.options.majorPenaltyMs = ms },
+        { label: 'Guest Name', type: 'action',
+          do: () => flashLed('STUB: enter guest', 1500) },
+        { label: 'Home Name',  type: 'action',
+          do: () => flashLed('STUB: enter home', 1500) },
       ],
     },
+    // 3. Profiles ------------------------------------------------------
+    // Load / save (each takes a 2-digit profile #) and Default Lock.
+    // The load/save flows are stubbed - profile persistence is a separate
+    // feature on the real device.
     {
-      // Hockey option: Interval Horn. Stub only - the values persist but no
-      // live interval-horn loop is running yet.
-      label: 'Interval Horn',
+      label: 'Profiles',
       items: [
-        { label: 'Enable',   type: 'toggle',
-          get: () => state.options.intervalHornEnabled,
-          set: (v) => state.options.intervalHornEnabled = v },
-        { label: 'Int Time', type: 'time5',
-          get: () => state.options.intervalHornMs,
-          set: (ms) => state.options.intervalHornMs = ms },
+        { label: 'Load Profile', type: 'action',
+          do: () => flashLed('STUB: load prof', 1500) },
+        { label: 'Save Profile', type: 'action',
+          do: () => flashLed('STUB: save prof', 1500) },
+        { label: 'Default Lock', type: 'toggle',
+          get: () => state.options.defaultProfileLock,
+          set: (v) => state.options.defaultProfileLock = v },
       ],
     },
-    {
-      // Hockey option: show shots / saves digit pair on the scoreboard.
-      // Stub only - the 4760 layout already renders the digit cells.
-      label: 'Disp Shot/Save', type: 'toggle',
-      get: () => state.options.displayShotSave,
-      set: (v) => state.options.displayShotSave = v,
-    },
-    {
-      // Shot Clocks: stubbed; the 4760 has no shot clock.
-      label: 'Shot Clocks',
-      items: [
-        { label: 'Edit Shot Clk', type: 'action',
-          do: () => flashLed('STUB: edit shot') },
-        { label: 'ST > MT Blank', type: 'toggle',
-          get: () => state.options.shotBlankUnderMain,
-          set: (v) => state.options.shotBlankUnderMain = v },
-        { label: 'SCS1 Time', type: 'time5',
-          get: () => state.options.scs1TimeMs,
-          set: (ms) => state.options.scs1TimeMs = ms },
-        { label: 'SCS2 Time', type: 'time5',
-          get: () => state.options.scs2TimeMs,
-          set: (ms) => state.options.scs2TimeMs = ms },
-      ],
-    },
-    {
-      // HHS Function: which function the RCS-7 wireless handheld switch
-      // performs (Goal Light or Shot Clock). Stub.
-      label: 'HHS Function', type: 'cycle', values: ['Goal Light', 'Shot Clock'],
-      get: () => state.options.hhsFunction,
-      set: (v) => state.options.hhsFunction = v,
-    },
+    // 4. Main Time -----------------------------------------------------
     {
       label: 'Main Time',
       items: [
-        { label: 'Direction',     type: 'arrow',
+        { label: 'Direction',  type: 'arrow',
           get: () => state.options.countDown,
           set: (v) => state.options.countDown = v },
-        { label: 'Auto Horn',     type: 'toggle',
+        { label: 'Auto Horn',  type: 'toggle',
           get: () => state.options.autoHorn,
           set: (v) => state.options.autoHorn = v },
-        { label: 'Disable .1',    type: 'toggle',
+        { label: 'Disable .1', type: 'toggle',
           get: () => state.options.disableTenths,
           set: (v) => state.options.disableTenths = v },
       ],
     },
+    // 5. Aux Time ------------------------------------------------------
+    // Stubbed - the 4760 emulator doesn't display an auxiliary timer.
     {
-      // Aux Time: stubbed; the 4760 doesn't display an aux timer.
       label: 'Aux Time',
       items: [
         { label: 'Set Aux',     type: 'time5',
@@ -1033,11 +1015,12 @@
           set: (v) => state.options.auxStyle = v },
       ],
     },
+    // 6. Segment Timer -------------------------------------------------
+    // Per-segment fields ("Edit Segment" sub-sub-menu in the manual) are
+    // flattened here. "Next Seg" cycles which slot the per-slot fields
+    // read / write. Defaults seed an interval-horn (one segment of 1:00
+    // with Auto Horn + Auto Advance on).
     {
-      // Segment Timer: per the manual, up to 20 segments. The manual nests
-      // per-segment fields under an "Edit Segment" sub-sub-menu - flattened
-      // here so the existing 2-deep navigation still works. "Next Seg"
-      // cycles which slot the per-slot fields read / write.
       label: 'Segment Timer',
       items: [
         { label: 'Enable', type: 'toggle',
@@ -1071,9 +1054,10 @@
           } },
       ],
     },
+    // 7. Time Out Timer ------------------------------------------------
+    // 5 individually settable timers, each with its own warning time.
+    // "Next TO" cycles which slot is currently edited.
     {
-      // Time Out Timer: 5 individually settable timers, each with its own
-      // warning time. "Next TO" cycles which slot is currently edited.
       label: 'TimeOut Timer',
       items: [
         { label: 'Disp On Board', type: 'toggle',
@@ -1093,50 +1077,22 @@
           } },
       ],
     },
+    // 8. Swap Home & Guests --------------------------------------------
     {
-      label: 'Brightness', type: 'cycle', values: ['High', 'Low'],
-      get: () => state.options.brightness,
-      set: (v) => state.options.brightness = v,
-    },
-    {
-      label: 'Swap H&G', type: 'action',
+      label: 'Swap Home&Guest', type: 'action',
       do: () => { swapHomeAndGuest(); flashLed('SWAPPED'); },
     },
+    // 9. Aux Display ---------------------------------------------------
     {
-      // Team Names: stubbed. Real device uses an alphanumeric keypad mode
-      // to type team names; not implemented yet.
-      label: 'Team Names',
-      items: [
-        { label: 'Guest Name', type: 'action',
-          do: () => flashLed('STUB: enter guest', 1500) },
-        { label: 'Home Name',  type: 'action',
-          do: () => flashLed('STUB: enter home', 1500) },
-      ],
-    },
-    {
-      // Profiles: load / save / default-lock. Stubbed - profile system is
-      // a separate feature (100 slots, sport-specific defaults).
-      label: 'Profiles',
-      items: [
-        { label: 'Load Profile', type: 'action',
-          do: () => flashLed('STUB: load prof', 1500) },
-        { label: 'Save Profile', type: 'action',
-          do: () => flashLed('STUB: save prof', 1500) },
-        { label: 'Default Lock', type: 'toggle',
-          get: () => state.options.defaultProfileLock,
-          set: (v) => state.options.defaultProfileLock = v },
-      ],
-    },
-    {
-      // Aux Display: which source the auxiliary scoreboard timer follows.
       label: 'Aux Display', type: 'cycle', values: ['Main', 'Aux', 'TOD'],
       get: () => state.options.auxDisplay,
       set: (v) => state.options.auxDisplay = v,
     },
+    // 10. Horn Settings ------------------------------------------------
+    // Tone selection (0-9) for each event horn and overall volume.
+    // Stubbed - the emulator's web-audio horn doesn't pick tones; values
+    // persist for future use.
     {
-      // Horn Settings: tone selection (0-9) for each event horn and overall
-      // volume. Stubbed - the emulator's web-audio horn doesn't yet pick
-      // tones; values persist for future use.
       label: 'Horn Settings',
       items: [
         { label: 'Volume',   type: 'digit',
@@ -1159,8 +1115,10 @@
           set: (n) => state.options.hornSegmentTone = n },
       ],
     },
+    // 11. Wireless -----------------------------------------------------
+    // Link / add / delete receivers. Hardware-only on the real device;
+    // stubbed.
     {
-      // Wireless: link / add / delete receivers. Hardware feature, stubbed.
       label: 'Wireless',
       items: [
         { label: 'Link Recv', type: 'action',
@@ -1171,11 +1129,12 @@
           do: () => flashLed('STUB: del recv', 1500) },
       ],
     },
+    // 12. Scoreboard Model ---------------------------------------------
     {
-      // Scoreboard Model: hardware feature, stubbed.
       label: 'Scoreboard Model', type: 'action',
       do: () => flashLed('STUB: model', 1500),
     },
+    // 13. Time of Day --------------------------------------------------
     {
       label: 'Time of Day', type: 'action',
       do: () => flashLed(formatWallClock(), 3000),
