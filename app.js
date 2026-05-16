@@ -141,6 +141,7 @@
   //   { kind: 'shots',  team }
   //   { kind: 'saves',  team }
   //   { kind: 'tol',    team }
+  //   { kind: 'add',     team, field: 'score'|'shots'|'saves' }
   //   { kind: 'penalty', team, phase: 'player'|'time', player, duration }
   //   { kind: 'await-team',  then: 'insert-penalty' | 'clear-penalty' | 'edit-penalty' | 'view-penalty' }
   //   { kind: 'clear-slot',  team }
@@ -382,6 +383,12 @@
       case 'score':    return `[data-action="score"][data-team="${entry.team}"]`;
       case 'shots':    return `[data-action="goal-shots"][data-team="${entry.team}"]`;
       case 'saves':    return `[data-action="goal-saves"][data-team="${entry.team}"]`;
+      case 'add': {
+        const action = entry.field === 'score' ? 'score'
+                     : entry.field === 'shots' ? 'goal-shots'
+                     : 'goal-saves';
+        return `[data-action="${action}"][data-team="${entry.team}"]`;
+      }
       case 'penalty':
         if (entry.kindType === 'minor') return `[data-action="new-minor"][data-team="${entry.team}"]`;
         if (entry.kindType === 'major') return `[data-action="new-major"][data-team="${entry.team}"]`;
@@ -406,10 +413,17 @@
     switch (e.kind) {
       case 'clock':   return `CLK ${buf ? previewTime(buf) : '--:--'}`;
       case 'period':  return `PER ${buf || '-'}`;
-      case 'score':   return `${e.team === 'home' ? 'HSC' : 'GSC'} ${buf.padStart(2, '-')}`;
-      case 'shots':   return `${e.team === 'home' ? 'HSH' : 'GSH'} ${buf.padStart(2, '-')}`;
-      case 'saves':   return `${e.team === 'home' ? 'HSV' : 'GSV'} ${buf.padStart(2, '-')}`;
+      case 'score':   return `${e.team === 'home' ? 'HSC' : 'GSC'} ${buf.padStart(3, '-')}`;
+      case 'shots':   return `${e.team === 'home' ? 'HSH' : 'GSH'} ${buf.padStart(3, '-')}`;
+      case 'saves':   return `${e.team === 'home' ? 'HSV' : 'GSV'} ${buf.padStart(3, '-')}`;
       case 'tol':     return `${e.team === 'home' ? 'HTO' : 'GTO'} ${buf || '-'}`;
+      // Manual: ##+ Score ## (home) / ## Score +## (guest). Reuse short
+      // labels for our small LED window: SC/SH/SV with a side-coded +.
+      case 'add': {
+        const cur = pad2(state[e.team][e.field]);
+        const label = e.field === 'score' ? 'SC' : e.field === 'shots' ? 'SH' : 'SV';
+        return e.team === 'home' ? `${cur}+ ${label}` : `${label} +${cur}`;
+      }
       case 'penalty':
         if (e.phase === 'player') {
           return `${e.team === 'home' ? 'HPN' : 'GPN'} P ${buf.padStart(2, '-')}`;
@@ -522,11 +536,6 @@
     state.buffer = '';
   }
 
-  function bump(team, field, delta, max) {
-    const obj = state[team];
-    obj[field] = Math.max(0, Math.min(max, obj[field] + delta));
-  }
-
   function flashLed(msg, ms = FLASH_MS) {
     state.flash = msg;
     state.flashUntil = Date.now() + ms;
@@ -628,33 +637,33 @@
   }
 
   function pressScore(team) {
+    // Manual behaviour: HOME SCORE / GUEST SCORE puts the controller in
+    // "add mode" - the NEXT digit pressed is added to the score (not a
+    // direct +1). SET + SCORE arms a direct entry (1-3 digits).
     if (state.setMode) {
       arm({ kind: 'score', team });
-    } else {
-      cancelEntry();
-      bump(team, 'score', +1, MAX_SCORE);
-      state.goalLightUntil = Date.now() + GOAL_LIGHT_MS;
-      flashLed(`${team === 'home' ? 'H' : 'G'}-GOAL`);
+      return;
     }
+    cancelEntry();
+    arm({ kind: 'add', team, field: 'score' });
   }
 
   function pressShots(team) {
     if (state.setMode) {
       arm({ kind: 'shots', team });
-    } else {
-      cancelEntry();
-      bump(team, 'shots', +1, MAX_SHOTS);
+      return;
     }
+    cancelEntry();
+    arm({ kind: 'add', team, field: 'shots' });
   }
 
   function pressSaves(team) {
     if (state.setMode) {
       arm({ kind: 'saves', team });
-    } else {
-      cancelEntry();
-      bump(team, 'saves', +1, MAX_SAVES);
-      flashLed(`${team === 'home' ? 'H' : 'G'}-SV ${pad2(state[team].saves)}`);
+      return;
     }
+    cancelEntry();
+    arm({ kind: 'add', team, field: 'saves' });
   }
 
   function pressNewPenalty(team, kind /* 'minor' | 'major' */) {
@@ -749,6 +758,25 @@
     const e = state.entry;
     if (!e) return;
     if (e.kind === 'await-team') return;
+    // "Add mode" entry: the digit pressed is added to the stat with the +,
+    // then the entry is consumed - per the manual: "To add more start from
+    // step 1" (i.e., press SCORE / SHOTS / SAVES again).
+    if (e.kind === 'add') {
+      const n = parseInt(d, 10);
+      if (!Number.isNaN(n) && n >= 0 && n <= 9) {
+        const max = e.field === 'score' ? MAX_SCORE
+                  : e.field === 'shots' ? MAX_SHOTS
+                  : MAX_SAVES;
+        const prev = state[e.team][e.field];
+        state[e.team][e.field] = Math.min(max, prev + n);
+        if (e.field === 'score' && n > 0) {
+          state.goalLightUntil = Date.now() + GOAL_LIGHT_MS;
+          flashLed(`${e.team === 'home' ? 'H' : 'G'}-GOAL`);
+        }
+      }
+      cancelEntry();
+      return;
+    }
     if (e.kind === 'clear-slot') {
       const slot = parseInt(d, 10);
       if (slot === 1 || slot === 2) {
@@ -787,9 +815,11 @@
     switch (e.kind) {
       case 'clock':   return 4;
       case 'period':  return 1;
-      case 'score':   return 2;
-      case 'shots':   return 2;
-      case 'saves':   return 2;
+      // SET-mode stat entries: up to 3 digits (e.g. set score to 0-999;
+      // ENTER commits early at 1 or 2 digits per the manual).
+      case 'score':   return 3;
+      case 'shots':   return 3;
+      case 'saves':   return 3;
       case 'tol':     return 1;
       case 'penalty': return e.phase === 'player' ? 2 : 4;
     }
