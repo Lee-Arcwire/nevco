@@ -44,6 +44,12 @@
   // ---------------------------------------------------------------
 
   const PERIOD_DEFAULT_MS = 20 * 60 * 1000;
+  // Bumped when the persisted state.options shape changes in a way old
+  // saves shouldn't carry forward. On load, a mismatch triggers a one-shot
+  // migration that overwrites segments / time-outs / currentSegIdx /
+  // currentTimeOutIdx with the latest factory defaults (currently the
+  // interval-horn segment config).
+  const OPTIONS_VERSION = 2;
   const MAX_SCORE = 99;
   const MAX_PERIOD = 9;
   const MAX_SHOTS = 99;
@@ -82,6 +88,7 @@
     // Persisted OPTIONS menu values. Saved to localStorage on change.
     // See MPC7_Hockey_135-0222.PDF for the menu structure these mirror.
     options: {
+      optionsVersion:       OPTIONS_VERSION,
       penaltyButtonEnabled: true,    // Penalties > Enable Button
       minorPenaltyMs:       2 * 60 * 1000,
       majorPenaltyMs:       5 * 60 * 1000,
@@ -1239,26 +1246,57 @@
     return typeof item.labelFn === 'function' ? item.labelFn() : item.label;
   }
 
+  // Factory defaults for the segment timer: manual's interval-horn example -
+  // segment 1 = 1:00 with Auto Horn + Auto Advance on, segments 2-20 = 0:00
+  // (treated as unused, per the manual's "project less than 20" note).
+  function makeDefaultSegments() {
+    return Array.from({ length: 20 }, (_, i) => i === 0
+      ? { timeMs: 60 * 1000, autoHorn: true,  autoAdvance: true  }
+      : { timeMs: 0,         autoHorn: false, autoAdvance: false });
+  }
+
+  function makeDefaultTimeOuts() {
+    return Array.from({ length: 5 }, () => ({
+      timeMs: 60 * 1000, warningMs: 5 * 1000,
+    }));
+  }
+
   function loadOptions() {
+    // Stash the stored version BEFORE the Object.assign, otherwise the merge
+    // leaves the default OPTIONS_VERSION in place when the stored payload
+    // didn't include the field, and the migration check below would never
+    // trigger.
+    let storedVersion;
     try {
       const raw = localStorage.getItem('nevco-options');
-      if (raw) Object.assign(state.options, JSON.parse(raw));
+      if (raw) {
+        const stored = JSON.parse(raw);
+        storedVersion = stored.optionsVersion;
+        Object.assign(state.options, stored);
+      }
     } catch (_) { /* ignore: incognito / blocked storage */ }
-    // Guard array shape: if older saves omit these (or saved a malformed
-    // value), restore the factory defaults so per-slot menu leaves don't
-    // dereference undefined.
-    const segs = state.options.segments;
-    if (!Array.isArray(segs) || segs.length !== 20) {
-      // Same factory default as the state-init block: interval-horn config.
-      state.options.segments = Array.from({ length: 20 }, (_, i) => i === 0
-        ? { timeMs: 60 * 1000, autoHorn: true,  autoAdvance: true  }
-        : { timeMs: 0,         autoHorn: false, autoAdvance: false });
+
+    // Version migration: when OPTIONS_VERSION is bumped, overwrite the
+    // segment timer + time-out timer block with the latest factory defaults
+    // (and reset their current-slot pointers). One-shot - subsequent loads
+    // see the matching version and keep customised values.
+    if (storedVersion !== OPTIONS_VERSION) {
+      state.options.segments         = makeDefaultSegments();
+      state.options.currentSegIdx    = 0;
+      state.options.timeOuts         = makeDefaultTimeOuts();
+      state.options.currentTimeOutIdx = 0;
+      state.options.optionsVersion   = OPTIONS_VERSION;
+      persistOptions();
     }
-    const tos = state.options.timeOuts;
-    if (!Array.isArray(tos) || tos.length !== 5) {
-      state.options.timeOuts = Array.from({ length: 5 }, () => ({
-        timeMs: 60 * 1000, warningMs: 5 * 1000,
-      }));
+
+    // Belt-and-braces: if something else corrupted the array shape after a
+    // matching version, restore the factory defaults so per-slot menu leaves
+    // don't dereference undefined.
+    if (!Array.isArray(state.options.segments) || state.options.segments.length !== 20) {
+      state.options.segments = makeDefaultSegments();
+    }
+    if (!Array.isArray(state.options.timeOuts) || state.options.timeOuts.length !== 5) {
+      state.options.timeOuts = makeDefaultTimeOuts();
     }
     // segmentTimeMs is transient (not persisted); always start at 0 so the
     // first TIME ON after a page load pulls the active segment fresh.
