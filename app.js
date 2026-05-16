@@ -284,6 +284,17 @@
     return formatPenaltyTime(ms);
   }
 
+  // Left-to-right fixed-width MMSS preview used during edits that the
+  // manual documents as fixed-width fills (segment time, penalty time,
+  // time-out timer "Time N" / "Warn N"). Unfilled positions show as
+  // dashes. e.g. ""=>"--:--", "5"=>"5-:--", "50"=>"50:--", "503"=>"50:3-",
+  // "5030"=>"50:30". (Different from previewTime() which is for the
+  // flexible MSS/MMSS game-clock entry.)
+  function previewMMSS(digits) {
+    const d = (digits || '').padEnd(4, '-');
+    return `${d[0]}${d[1]}:${d[2]}${d[3]}`;
+  }
+
   // 5-digit MM:SS.s parser, used by Segment Timer and Time Out Timer
   // entries (per the manual: "Enter the minutes, seconds, and 10th of
   // seconds").
@@ -311,6 +322,12 @@
     const ms = parseTimeDigits5(digits.padEnd(5, '0'));
     if (ms == null) return '??:??.?';
     return formatTime5(ms);
+  }
+
+  // Left-to-right MM:SS.s preview for fixed-width 5-digit menu entries.
+  function previewMMSS5(digits) {
+    const d = (digits || '').padEnd(5, '-');
+    return `${d[0]}${d[1]}:${d[2]}${d[3]}.${d[4]}`;
   }
 
   function formatWallClock() {
@@ -440,7 +457,7 @@
         if (e.phase === 'player') {
           return `${e.team === 'home' ? 'HPN' : 'GPN'} P ${buf.padStart(2, '-')}`;
         }
-        return `${e.team === 'home' ? 'HPN' : 'GPN'} ${pad2(e.player)} ${previewTime(buf)}`;
+        return `${e.team === 'home' ? 'HPN' : 'GPN'} ${pad2(e.player)} ${previewMMSS(buf)}`;
       case 'await-team':
         return 'SEL TEAM';
       case 'clear-slot':
@@ -457,8 +474,8 @@
     // Sub-menu suffix on items-bearing nodes - matches the manual's "Penalties >>"
     const arrow = (it) => it.items ? ` >>` : '';
 
-    if (m.editing === 'time4')   return `${lbl} ${previewTime(buf)}◄`;
-    if (m.editing === 'time5')   return `${lbl} ${previewTime5(buf)}◄`;
+    if (m.editing === 'time4')   return `${lbl} ${previewMMSS(buf)}◄`;
+    if (m.editing === 'time5')   return `${lbl} ${previewMMSS5(buf)}◄`;
     if (m.editing === 'digit')   return `${lbl}: ${buf || '_'}◄`;
     if (m.editing === 'numeric') return `${lbl} ${buf || '_'}◄`;
 
