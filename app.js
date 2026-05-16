@@ -466,10 +466,18 @@
       case 'tol':     return `${e.team === 'home' ? 'HTO' : 'GTO'} ${buf || '-'}`;
       // Manual: ##+ Score ## (home) / ## Score +## (guest). Reuse short
       // labels for our small LED window: SC/SH/SV with a side-coded +.
+      // Manual: pressing HOME SCORE shows '## + Score ##' (home value on
+      // the left, + indicating home is being added to); pressing GUEST
+      // SCORE shows '## Score + ##' (+ on the right side). Same shape for
+      // Shots and Saves. The next digit (0-9) is added to the side with
+      // the '+'.
       case 'add': {
-        const cur = pad2(state[e.team][e.field]);
-        const label = e.field === 'score' ? 'SC' : e.field === 'shots' ? 'SH' : 'SV';
-        return e.team === 'home' ? `${cur}+ ${label}` : `${label} +${cur}`;
+        const h    = pad2(state.home[e.field]);
+        const g    = pad2(state.guest[e.field]);
+        const word = e.field.charAt(0).toUpperCase() + e.field.slice(1);
+        return e.team === 'home'
+          ? `${h} + ${word} ${g}`
+          : `${h} ${word} + ${g}`;
       }
       case 'penalty':
         // Player phase: "New <defaultTime> ##◄" with the typed digits
