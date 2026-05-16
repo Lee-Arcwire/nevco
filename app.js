@@ -337,6 +337,17 @@
     return `${d[0]}${d[1]}:${d[2]}${d[3]}.${d[4]}`;
   }
 
+  // SET + TIME clock-entry preview. Manual uses "MM:SS.s" letters as the
+  // placeholders (tens-of-min, units-of-min, tens-of-sec, units-of-sec,
+  // tenths-of-sec) so the operator can see which position each digit will
+  // land in. Letters get replaced left-to-right by typed digits.
+  function previewClockMMSSS(digits) {
+    const ph = ['M', 'M', 'S', 'S', 's'];
+    const d  = digits || '';
+    const c  = (i) => i < d.length ? d[i] : ph[i];
+    return `${c(0)}${c(1)}:${c(2)}${c(3)}.${c(4)}`;
+  }
+
   function formatWallClock() {
     const d = new Date();
     return `${pad2(d.getHours())}:${pad2(d.getMinutes())}.${pad2(d.getSeconds())}`;
@@ -447,7 +458,7 @@
     const e = state.entry;
     const buf = state.buffer || '';
     switch (e.kind) {
-      case 'clock':   return `Time: ${previewMMSS5(buf)}◄`;
+      case 'clock':   return `Time: ${previewClockMMSSS(buf)}◄`;
       case 'period':  return `PER ${buf || '-'}`;
       case 'score':   return `${e.team === 'home' ? 'HSC' : 'GSC'} ${buf.padStart(3, '-')}`;
       case 'shots':   return `${e.team === 'home' ? 'HSH' : 'GSH'} ${buf.padStart(3, '-')}`;
@@ -903,20 +914,19 @@
     const buf = state.buffer;
     switch (e.kind) {
       case 'clock': {
-        // Manual: SET + TIME requires 5 digits MM:SS.s (M=tens of minutes,
-        // m=units of minutes, S=tens of seconds, s=units of seconds, .s=
-        // tenths). Auto-accept fires when the buffer fills (see pressNum);
-        // here we handle the user pressing ENTER mid-input. Empty buffer
-        // returns to the previous time without changing it (per the
-        // manual's NO/CANCEL note); anything else short of 5 digits
-        // flashes 'NEED 5 DIGITS'.
+        // Manual: SET + TIME takes 5 digits MM:SS.s. Auto-accept fires when
+        // the buffer fills (see pressNum). On YES with a partial buffer:
+        // "zeros will be placed in the unfilled digits and the time will be
+        // accepted" (page 8 example: 1,2,YES -> 12:00.0). Empty buffer +
+        // YES is treated as a clean back-out so a stray YES doesn't zero
+        // the clock.
         if (buf.length === 0) {
           cancelEntry();
           state.setMode = false;
           return;
         }
-        if (buf.length !== 5) { flashLed('NEED 5 DIGITS'); return; }
-        const ms = parseTimeDigits5(buf);
+        const padded = buf.padEnd(5, '0');
+        const ms = parseTimeDigits5(padded);
         if (ms == null) { flashLed('BAD TIME'); return; }
         state.timeMs = ms;
         cancelEntry();
