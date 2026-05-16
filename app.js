@@ -85,6 +85,9 @@
     goalLightUntil: 0,
     flash: null,            // transient LED message
     flashUntil: 0,
+    // VIEW PENALTY mode. {team, idx} when cycling through penalties.
+    // EDIT PENALTY drills into the currently-viewed slot.
+    viewPenalty: null,
     // Persisted OPTIONS menu values. Saved to localStorage on change.
     // See MPC7_Hockey_135-0222.PDF for the menu structure these mirror.
     options: {
@@ -158,8 +161,12 @@
   //   { kind: 'saves',  team }
   //   { kind: 'tol',    team }
   //   { kind: 'add',     team, field: 'score'|'shots'|'saves' }
-  //   { kind: 'penalty', team, phase: 'player'|'time', player, duration }
-  //   { kind: 'await-team',  then: 'insert-penalty' | 'clear-penalty' | 'edit-penalty' | 'view-penalty' }
+  //   { kind: 'penalty', team, phase: 'player'|'time',
+  //     // NEW PENALTY / INSERT PENALTY fields:
+  //     kindType?, defaultMs?, player?,
+  //     // EDIT PENALTY fields:
+  //     edit?, slotIdx?, currentPlayer?, currentTimeMs? }
+  //   { kind: 'await-team',  then: 'insert-penalty' | 'clear-penalty' }
   //   { kind: 'clear-slot',  team }
 
   // ---------------------------------------------------------------
@@ -452,6 +459,16 @@
     if (state.menu) return menuLedText();
     if (!state.entry) {
       if (state.setMode) return 'SET';
+      // VIEW PENALTY mode: show the currently-cycled penalty until another
+      // entry / mode takes priority. Pressing VIEW PENALTY again advances
+      // to the next slot for that team.
+      if (state.viewPenalty) {
+        const { team, idx } = state.viewPenalty;
+        const arr = state[team].penalties;
+        const p   = arr[idx];
+        if (!p) { state.viewPenalty = null; return formatClock(state.timeMs); }
+        return `${team === 'home' ? 'H' : 'G'}${idx + 1} ${formatPenaltyTime(p.remainingMs)} ${pad2(p.player)}`;
+      }
       const showSegment = state.options.segmentEnabled && state.options.segmentDispOnBoard;
       return formatClock(showSegment ? state.segmentTimeMs : state.timeMs);
     }
@@ -480,16 +497,32 @@
           : `${h} ${word} + ${g}`;
       }
       case 'penalty':
-        // Player phase: "New <defaultTime> ##◄" with the typed digits
-        // filling the # placeholders left to right. The default time is
-        // 2:00 for NEW MINOR / 5:00 for NEW MAJOR (or whatever the
-        // operator has configured under Penalties > Minor Pen / Major Pen
-        // - we just read whichever ms value pressNewPenalty captured).
+        // EDIT PENALTY display per the manual (page 17):
+        //   phase 'player': "Edit<slot> <currentTime> ►<editingPlayer>"
+        //   phase 'time'  : "Edit<slot> <editingTime>  ◄<player>"
+        // The cursor arrow points at the side being edited. The phase
+        // displays carry the kept value in the non-cursor position so the
+        // operator can press YES to keep it.
+        if (e.edit) {
+          const slot = (e.slotIdx ?? 0) + 1;
+          if (e.phase === 'player') {
+            const pl = buf.length > 0 ? buf.padEnd(2, '#') : pad2(e.currentPlayer);
+            return `Edit${slot} ${formatPenaltyTime(e.currentTimeMs)} ►${pl}`;
+          }
+          const td = buf.padEnd(4, '#');
+          const timeDisp = buf.length > 0
+            ? `${td[0]}${td[1]}:${td[2]}${td[3]}`
+            : formatPenaltyTime(e.currentTimeMs);
+          return `Edit${slot} ${timeDisp} ◄${pad2(e.player ?? e.currentPlayer)}`;
+        }
+        // NEW / INSERT PENALTY display:
+        //   phase 'player': "New <defaultTime> ##◄" - the typed digits
+        //   fill the # placeholders left to right.
+        //   phase 'time'  : "Pen <playerNum> MM:SS◄" - left-to-right.
         if (e.phase === 'player') {
           const def = e.defaultMs != null ? formatPenaltyTime(e.defaultMs) : '#:##';
           return `New ${def} ${buf.padEnd(2, '#')}◄`;
         }
-        // Time phase: "Pen <playerNum> MM:SS◄" with # placeholders.
         {
           const td = buf.padEnd(4, '#');
           return `Pen ${pad2(e.player)} ${td[0]}${td[1]}:${td[2]}${td[3]}◄`;
@@ -786,21 +819,50 @@
     arm({ kind: 'await-team', then: 'clear-penalty' });
   }
 
-  function pressViewPenalty() {
-    // Briefly summarise penalty queue on the LED
-    const h = state.home.penalties;
-    const g = state.guest.penalties;
-    if (!h.length && !g.length) {
+  function pressViewPenalty(team) {
+    // Cycle through the team's penalty queue. Each press of VIEW PENALTY
+    // for the same team advances to the next penalty. Switching teams
+    // starts at slot 0. With no penalties to show, exit view mode and
+    // flash a notice.
+    const arr = state[team].penalties;
+    if (!arr.length) {
+      state.viewPenalty = null;
       flashLed('NO PEN', 1500);
       return;
     }
-    const fmt = (p, tag) => `${tag}${pad2(p.player)}-${formatPenaltyTime(p.remainingMs)}`;
-    if (h.length) flashLed(fmt(h[0], 'H'), 1500);
-    else flashLed(fmt(g[0], 'G'), 1500);
+    if (state.viewPenalty && state.viewPenalty.team === team) {
+      state.viewPenalty.idx = (state.viewPenalty.idx + 1) % arr.length;
+    } else {
+      state.viewPenalty = { team, idx: 0 };
+    }
   }
 
   function pressEditPenalty() {
-    arm({ kind: 'await-team', then: 'edit-penalty' });
+    // EDIT PENALTY drills into the penalty currently being viewed. Per the
+    // manual: "Press VIEW PENALTY ... until the desired penalty is
+    // displayed, [then press] EDIT PENALTY".
+    if (!state.viewPenalty) {
+      flashLed('PRESS VIEW', 1500);
+      return;
+    }
+    const { team, idx } = state.viewPenalty;
+    const p = state[team].penalties[idx];
+    if (!p) {
+      state.viewPenalty = null;
+      flashLed('NO PEN', 1500);
+      return;
+    }
+    state.viewPenalty = null;
+    arm({
+      kind: 'penalty',
+      team,
+      edit: true,
+      slotIdx: idx,
+      phase: 'player',
+      currentPlayer: p.player,
+      currentTimeMs: p.remainingMs,
+    });
+    return;
   }
 
   function pressPenaltyOnOff() {
@@ -834,16 +896,8 @@
       case 'clear-penalty':
         arm({ kind: 'clear-slot', team });
         break;
-      case 'edit-penalty':
-        // Edit: replace slot 1's duration for that team via new MMSS entry.
-        // (Real device walks through full edit flow; this is a simplification.)
-        if (!state[team].penalties.length) {
-          flashLed('NO PEN');
-          cancelEntry();
-          return;
-        }
-        arm({ kind: 'penalty', team, phase: 'time', player: state[team].penalties[0].player, edit: true });
-        break;
+      // 'edit-penalty' used to go through await-team here; it now drills
+      // straight in from VIEW PENALTY (see pressEditPenalty).
       default:
         cancelEntry();
     }
@@ -898,9 +952,11 @@
       if (e.phase === 'player') {
         if (state.buffer.length < 2) {
           state.buffer += d;
-        } else {
-          // Two player digits already buffered: the new digit is the
-          // first digit of a custom MMSS time. Promote phase.
+        } else if (!e.edit) {
+          // NEW penalty: a 3rd digit promotes phase, dropping into the
+          // 4-digit MMSS time entry. EDIT mode is YES-driven per the
+          // manual ("if already correct press YES"), so further digits in
+          // the player phase are ignored.
           e.player = parseInt(state.buffer, 10);
           e.phase = 'time';
           state.buffer = d;
@@ -939,6 +995,8 @@
     if (pressMenuCancel()) return;
     if (state.entry) {
       cancelEntry();
+    } else if (state.viewPenalty) {
+      state.viewPenalty = null;
     } else if (state.setMode) {
       state.setMode = false;
     }
@@ -999,16 +1057,44 @@
         return;
       }
       case 'penalty': {
+        // EDIT PENALTY flow per the manual: phase 'player' takes a fresh
+        // 2-digit number or YES to keep the existing one; phase 'time'
+        // takes a 4-digit MMSS (auto-accept) or YES to keep the existing
+        // one (or partial + YES to zero-pad).
+        if (e.edit) {
+          if (e.phase === 'player') {
+            let player;
+            if (buf.length === 0)      player = e.currentPlayer;
+            else if (buf.length === 2) player = parseInt(buf, 10);
+            else { flashLed('NEED PLR'); return; }
+            e.player = player;
+            e.phase  = 'time';
+            state.buffer = '';
+            return;
+          }
+          // phase === 'time'
+          let ms;
+          if (buf.length === 0) {
+            ms = e.currentTimeMs;
+          } else {
+            const padded = buf.padEnd(4, '0');
+            ms = parseTimeDigits(padded);
+            if (ms == null || ms <= 0) { flashLed('BAD TIME'); return; }
+          }
+          const arr = state[e.team].penalties;
+          if (arr[e.slotIdx]) {
+            arr[e.slotIdx].player      = e.player;
+            arr[e.slotIdx].remainingMs = ms;
+          }
+          cancelEntry();
+          return;
+        }
+        // NEW / INSERT PENALTY flow.
         if (e.phase === 'player') {
-          // Need two player digits before we can commit; default-time-on-
-          // enter only applies once the player # is filled.
           if (buf.length !== 2) { flashLed('NEED PLR'); return; }
           const player = parseInt(buf, 10);
           const ms = e.defaultMs;
-          if (e.edit) {
-            const arr = state[e.team].penalties;
-            if (arr.length) arr[0].remainingMs = ms;
-          } else if (ms != null && ms > 0) {
+          if (ms != null && ms > 0) {
             state[e.team].penalties.push({ player, remainingMs: ms });
           }
           cancelEntry();
@@ -1016,22 +1102,13 @@
         }
         // phase === 'time'
         if (buf.length === 0) {
-          // Reached for EDIT PENALTY (which starts in time phase) when the
-          // operator backs out without typing anything. Leave the existing
-          // value alone.
           cancelEntry();
           return;
         }
-        // Manual-style partial commit: pad MMSS to the right with zeros.
         const padded = buf.padEnd(4, '0');
         const ms = parseTimeDigits(padded);
         if (ms == null || ms <= 0) { flashLed('BAD TIME'); return; }
-        if (e.edit) {
-          const arr = state[e.team].penalties;
-          if (arr.length) arr[0].remainingMs = ms;
-        } else {
-          state[e.team].penalties.push({ player: e.player, remainingMs: ms });
-        }
+        state[e.team].penalties.push({ player: e.player, remainingMs: ms });
         cancelEntry();
         return;
       }
@@ -1578,7 +1655,7 @@
       case 'new-major':        pressNewPenalty(team, 'major'); break;
       case 'insert-penalty':   pressInsertPenalty();      break;
       case 'clear-penalty':    pressClearPenalty();       break;
-      case 'view-penalty':     pressViewPenalty();        break;
+      case 'view-penalty':     pressViewPenalty(team);    break;
       case 'edit-penalty':     pressEditPenalty();        break;
       case 'penalty-onoff':    pressPenaltyOnOff();       break;
       case 'team-home':        pressTeam('home');         break;
