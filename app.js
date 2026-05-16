@@ -447,7 +447,7 @@
     const e = state.entry;
     const buf = state.buffer || '';
     switch (e.kind) {
-      case 'clock':   return `CLK ${buf ? previewTime(buf) : '--:--'}`;
+      case 'clock':   return `Time: ${previewMMSS5(buf)}◄`;
       case 'period':  return `PER ${buf || '-'}`;
       case 'score':   return `${e.team === 'home' ? 'HSC' : 'GSC'} ${buf.padStart(3, '-')}`;
       case 'shots':   return `${e.team === 'home' ? 'HSH' : 'GSH'} ${buf.padStart(3, '-')}`;
@@ -866,11 +866,15 @@
     }
     const max = numericMaxLen(e);
     if (state.buffer.length < max) state.buffer += d;
+    // Per the manual: SET + TIME auto-accepts when all 5 digits are filled.
+    if (e.kind === 'clock' && state.buffer.length === max) {
+      pressEnter();
+    }
   }
 
   function numericMaxLen(e) {
     switch (e.kind) {
-      case 'clock':   return 4;
+      case 'clock':   return 5;
       case 'period':  return 1;
       // SET-mode stat entries: up to 3 digits (e.g. set score to 0-999;
       // ENTER commits early at 1 or 2 digits per the manual).
@@ -899,9 +903,22 @@
     const buf = state.buffer;
     switch (e.kind) {
       case 'clock': {
-        const ms = parseTimeDigits(buf);
-        if (ms != null) state.timeMs = ms;
-        else flashLed('BAD TIME');
+        // Manual: SET + TIME requires 5 digits MM:SS.s (M=tens of minutes,
+        // m=units of minutes, S=tens of seconds, s=units of seconds, .s=
+        // tenths). Auto-accept fires when the buffer fills (see pressNum);
+        // here we handle the user pressing ENTER mid-input. Empty buffer
+        // returns to the previous time without changing it (per the
+        // manual's NO/CANCEL note); anything else short of 5 digits
+        // flashes 'NEED 5 DIGITS'.
+        if (buf.length === 0) {
+          cancelEntry();
+          state.setMode = false;
+          return;
+        }
+        if (buf.length !== 5) { flashLed('NEED 5 DIGITS'); return; }
+        const ms = parseTimeDigits5(buf);
+        if (ms == null) { flashLed('BAD TIME'); return; }
+        state.timeMs = ms;
         cancelEntry();
         state.setMode = false;
         return;
