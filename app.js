@@ -472,10 +472,20 @@
         return e.team === 'home' ? `${cur}+ ${label}` : `${label} +${cur}`;
       }
       case 'penalty':
+        // Player phase: "New <defaultTime> ##◄" with the typed digits
+        // filling the # placeholders left to right. The default time is
+        // 2:00 for NEW MINOR / 5:00 for NEW MAJOR (or whatever the
+        // operator has configured under Penalties > Minor Pen / Major Pen
+        // - we just read whichever ms value pressNewPenalty captured).
         if (e.phase === 'player') {
-          return `${e.team === 'home' ? 'HPN' : 'GPN'} P ${buf.padStart(2, '-')}`;
+          const def = e.defaultMs != null ? formatPenaltyTime(e.defaultMs) : '#:##';
+          return `New ${def} ${buf.padEnd(2, '#')}◄`;
         }
-        return `${e.team === 'home' ? 'HPN' : 'GPN'} ${pad2(e.player)} ${previewMMSS(buf)}`;
+        // Time phase: "Pen <playerNum> MM:SS◄" with # placeholders.
+        {
+          const td = buf.padEnd(4, '#');
+          return `Pen ${pad2(e.player)} ${td[0]}${td[1]}:${td[2]}${td[3]}◄`;
+        }
       case 'await-team':
         return 'SEL TEAM';
       case 'clear-slot':
@@ -740,17 +750,22 @@
       return;
     }
     // Operator types the penalty in order:
-    //   (1) 2-digit player # (leading zero required for single-digit #)
-    //   (2) 4-digit penalty time MMSS (leading zero required for < 10 min)
-    //   (3) ENTER to commit
-    // After the second digit the entry auto-advances from the player phase
-    // to the time phase. The minor/major distinction is recorded but no
-    // longer auto-fills the time.
+    //   (1) 2-digit player # (leading zero required for single-digit #).
+    //   (2) After two digits, ENTER commits with the default time for the
+    //       minor / major variant (state.options.minorPenaltyMs /
+    //       majorPenaltyMs). If instead the operator presses another digit
+    //       the entry transitions to a 4-digit time entry.
+    //   (3) In the time phase, ENTER zero-pads the partial buffer and
+    //       commits. A full 4-digit buffer auto-commits.
+    const defaultMs = kind === 'major'
+      ? state.options.majorPenaltyMs
+      : state.options.minorPenaltyMs;
     arm({
       kind: 'penalty',
       team,
       phase: 'player',
       kindType: kind,
+      defaultMs,
       player: null,
     });
   }
@@ -801,7 +816,12 @@
     }
     switch (e.then) {
       case 'insert-penalty':
-        arm({ kind: 'penalty', team, phase: 'player', player: null });
+        // INSERT shares the new-penalty flow. Default time falls back to
+        // the configured minor penalty length so the operator can still
+        // ENTER after a 2-digit player # if they don't want to type a
+        // custom time.
+        arm({ kind: 'penalty', team, phase: 'player', player: null,
+              defaultMs: state.options.minorPenaltyMs });
         break;
       case 'clear-penalty':
         arm({ kind: 'clear-slot', team });
@@ -859,20 +879,29 @@
       }
       return;
     }
-    // Penalty entry uses fixed-width fields and auto-advances from the
-    // 2-digit player phase to the 4-digit time phase.
+    // Penalty entry:
+    //   * phase 'player' holds up to 2 digits. After two are typed the
+    //     entry waits for the operator's next action (ENTER -> default
+    //     time, or another digit -> jump to time entry with that digit
+    //     as the first time-position digit).
+    //   * phase 'time' holds up to 4 MMSS digits, auto-commits on the
+    //     fourth.
     if (e.kind === 'penalty') {
       if (e.phase === 'player') {
-        if (state.buffer.length < 2) state.buffer += d;
-        if (state.buffer.length === 2) {
+        if (state.buffer.length < 2) {
+          state.buffer += d;
+        } else {
+          // Two player digits already buffered: the new digit is the
+          // first digit of a custom MMSS time. Promote phase.
           e.player = parseInt(state.buffer, 10);
-          state.buffer = '';
           e.phase = 'time';
+          state.buffer = d;
         }
         return;
       }
       // phase === 'time'
       if (state.buffer.length < 4) state.buffer += d;
+      if (state.buffer.length === 4) pressEnter();
       return;
     }
     const max = numericMaxLen(e);
@@ -963,22 +992,32 @@
       }
       case 'penalty': {
         if (e.phase === 'player') {
-          // pressNum auto-advances from 'player' to 'time' once two digits
-          // have been entered. Hitting ENTER while still in 'player' means
-          // the operator pressed ENTER before completing the player number.
-          flashLed('NEED PLR');
+          // Need two player digits before we can commit; default-time-on-
+          // enter only applies once the player # is filled.
+          if (buf.length !== 2) { flashLed('NEED PLR'); return; }
+          const player = parseInt(buf, 10);
+          const ms = e.defaultMs;
+          if (e.edit) {
+            const arr = state[e.team].penalties;
+            if (arr.length) arr[0].remainingMs = ms;
+          } else if (ms != null && ms > 0) {
+            state[e.team].penalties.push({ player, remainingMs: ms });
+          }
+          cancelEntry();
           return;
         }
-        // phase === 'time' - require all four MMSS digits.
-        if (buf.length !== 4) {
-          flashLed('NEED MMSS');
+        // phase === 'time'
+        if (buf.length === 0) {
+          // Reached for EDIT PENALTY (which starts in time phase) when the
+          // operator backs out without typing anything. Leave the existing
+          // value alone.
+          cancelEntry();
           return;
         }
-        const ms = parseTimeDigits(buf);
-        if (ms == null || ms <= 0) {
-          flashLed('BAD TIME');
-          return;
-        }
+        // Manual-style partial commit: pad MMSS to the right with zeros.
+        const padded = buf.padEnd(4, '0');
+        const ms = parseTimeDigits(padded);
+        if (ms == null || ms <= 0) { flashLed('BAD TIME'); return; }
         if (e.edit) {
           const arr = state[e.team].penalties;
           if (arr.length) arr[0].remainingMs = ms;
