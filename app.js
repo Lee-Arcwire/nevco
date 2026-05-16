@@ -166,8 +166,7 @@
   //     kindType?, defaultMs?, player?,
   //     // EDIT PENALTY fields:
   //     edit?, slotIdx?, currentPlayer?, currentTimeMs? }
-  //   { kind: 'await-team',  then: 'insert-penalty' | 'clear-penalty' }
-  //   { kind: 'clear-slot',  team }
+  //   { kind: 'await-team',  then: 'insert-penalty' }
 
   // ---------------------------------------------------------------
   // DOM references
@@ -448,7 +447,6 @@
         if (entry.kindType === 'major') return `[data-action="new-major"][data-team="${entry.team}"]`;
         return '[data-action="insert-penalty"]';
       case 'await-team':  return `[data-action="${entry.then}"]`;
-      case 'clear-slot':  return '[data-action="clear-penalty"]';
       default: return null;
     }
   }
@@ -529,8 +527,6 @@
         }
       case 'await-team':
         return 'SEL TEAM';
-      case 'clear-slot':
-        return `CLR ${e.team === 'home' ? 'H' : 'G'} ${buf || '?'}`;
     }
     return 'READY';
   }
@@ -816,7 +812,31 @@
   }
 
   function pressClearPenalty() {
-    arm({ kind: 'await-team', then: 'clear-penalty' });
+    // Manual page 17: 'Press VIEW PENALTY ... until the desired penalty
+    // is displayed. Press CLEAR PENALTY.' Operates on whichever penalty
+    // is currently being viewed; without a prior VIEW PENALTY flashes
+    // PRESS VIEW. The cleared slot's successors shift up.
+    if (!state.viewPenalty) {
+      flashLed('PRESS VIEW', 1500);
+      return;
+    }
+    const { team, idx } = state.viewPenalty;
+    const arr = state[team].penalties;
+    if (!arr[idx]) {
+      state.viewPenalty = null;
+      flashLed('NO PEN', 1500);
+      return;
+    }
+    arr.splice(idx, 1);
+    // Keep viewing the same numeric slot (now occupied by what was the
+    // next penalty); if we just removed the tail, fall back to the new
+    // tail. Empty queue exits view mode.
+    if (arr.length === 0) {
+      state.viewPenalty = null;
+    } else if (idx >= arr.length) {
+      state.viewPenalty.idx = arr.length - 1;
+    }
+    flashLed(`CLR ${team === 'home' ? 'H' : 'G'}${idx + 1}`, 800);
   }
 
   function pressViewPenalty(team) {
@@ -893,11 +913,9 @@
         arm({ kind: 'penalty', team, phase: 'player', player: null,
               defaultMs: state.options.minorPenaltyMs });
         break;
-      case 'clear-penalty':
-        arm({ kind: 'clear-slot', team });
-        break;
-      // 'edit-penalty' used to go through await-team here; it now drills
-      // straight in from VIEW PENALTY (see pressEditPenalty).
+      // 'clear-penalty' and 'edit-penalty' used to route through here.
+      // They now operate on the currently-viewed penalty instead - see
+      // pressClearPenalty / pressEditPenalty.
       default:
         cancelEntry();
     }
@@ -925,20 +943,6 @@
         }
       }
       cancelEntry();
-      return;
-    }
-    if (e.kind === 'clear-slot') {
-      const slot = parseInt(d, 10);
-      if (slot === 1 || slot === 2) {
-        const arr = state[e.team].penalties;
-        if (arr[slot - 1]) {
-          arr.splice(slot - 1, 1);
-          flashLed(`CLR ${e.team === 'home' ? 'H' : 'G'}${slot}`);
-        } else {
-          flashLed('NO PEN');
-        }
-        cancelEntry();
-      }
       return;
     }
     // Penalty entry:
