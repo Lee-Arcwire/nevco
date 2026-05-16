@@ -189,6 +189,14 @@ html, body {
   gap: clamp(2px, 0.78cqi, 10px);
 }
 
+/* Push each penalty stack away from the adjacent score column. The grid
+   itself keeps a tight clamp gap so the score still hugs the clock, but
+   the home penalties get extra space on their right and the guest
+   penalties on their left. Sized in cqi so the cushion scales with the
+   board and doesn't break the 880px max. */
+.sb-pens-home  { margin-right: clamp(6px, 2.0cqi, 22px); }
+.sb-pens-guest { margin-left:  clamp(6px, 2.0cqi, 22px); }
+
 .sb-pen-row {
   display: flex;
   align-items: flex-end;
