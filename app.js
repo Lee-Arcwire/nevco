@@ -435,13 +435,20 @@
     lastTick = now;
 
     if (state.clockRunning) {
-      // OPTIONS > Main Time > Direction: ▼ counts down, ▲ counts up.
-      if (state.options.countDown) {
+      // Segment Timer overrides Main Time > Direction: segments always
+      // count down per the manual. The Direction option only applies to
+      // the regular game clock.
+      const countingDown = state.options.segmentEnabled || state.options.countDown;
+      if (countingDown) {
         state.timeMs -= dt;
         if (state.timeMs <= 0) {
           state.timeMs = 0;
-          state.clockRunning = false;
-          if (state.options.autoHorn) state.autoHornUntil = Date.now() + AUTO_HORN_MS;
+          if (state.options.segmentEnabled) {
+            handleSegmentEnd();
+          } else {
+            state.clockRunning = false;
+            if (state.options.autoHorn) state.autoHornUntil = Date.now() + AUTO_HORN_MS;
+          }
         }
       } else {
         state.timeMs += dt;
@@ -505,9 +512,56 @@
     state.setMode = !state.setMode;
   }
 
+  // Segment Timer: load the current segment's time into state.timeMs.
+  // 0:00 slots are treated as "unused" per the manual and skipped over.
+  // Returns true if a non-zero segment was loaded.
+  function loadActiveSegment() {
+    const segs = state.options.segments;
+    for (let i = 0; i < segs.length; i++) {
+      const j = (state.options.currentSegIdx + i) % segs.length;
+      if (segs[j].timeMs > 0) {
+        if (j !== state.options.currentSegIdx) {
+          state.options.currentSegIdx = j;
+          persistOptions();
+        }
+        state.timeMs = segs[j].timeMs;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Called when the segment clock reaches 0:00. Fires Auto Horn for that
+  // segment if enabled, then advances to the next non-zero segment if
+  // Auto Advance is enabled (otherwise pauses the clock at 0).
+  function handleSegmentEnd() {
+    const seg = state.options.segments[state.options.currentSegIdx];
+    if (seg.autoHorn) state.autoHornUntil = Date.now() + AUTO_HORN_MS;
+    if (!seg.autoAdvance) {
+      state.clockRunning = false;
+      return;
+    }
+    const segs = state.options.segments;
+    for (let i = 1; i <= segs.length; i++) {
+      const idx = (state.options.currentSegIdx + i) % segs.length;
+      if (segs[idx].timeMs > 0) {
+        state.options.currentSegIdx = idx;
+        state.timeMs = segs[idx].timeMs;
+        persistOptions();
+        return;
+      }
+    }
+    // No other non-zero segment in the project - hold at 0.
+    state.clockRunning = false;
+  }
+
   function pressTimeOn() {
     cancelEntry();
     state.setMode = false;
+    // Segment Timer: a fresh start (timeMs at 0) loads the active segment.
+    if (state.options.segmentEnabled && state.timeMs <= 0) {
+      if (!loadActiveSegment()) { flashLed('NO SEG'); return; }
+    }
     if (state.timeMs <= 0) {
       flashLed('NO TIME');
       return;
@@ -861,7 +915,15 @@
       items: [
         { label: 'Enable', type: 'toggle',
           get: () => state.options.segmentEnabled,
-          set: (v) => state.options.segmentEnabled = v },
+          set: (v) => {
+            state.options.segmentEnabled = v;
+            if (v) {
+              // Reset the clock so the next TIME ON loads a fresh segment
+              // instead of resuming whatever game time was left over.
+              state.timeMs = 0;
+              state.clockRunning = false;
+            }
+          } },
         { label: 'Disp On Board', type: 'toggle',
           get: () => state.options.segmentDispOnBoard,
           set: (v) => state.options.segmentDispOnBoard = v },
@@ -943,6 +1005,13 @@
       state.options.timeOuts = Array.from({ length: 5 }, () => ({
         timeMs: 60 * 1000, warningMs: 5 * 1000,
       }));
+    }
+    // If segment timer was persisted as enabled, start fresh on load - the
+    // leftover game clock from a previous session would otherwise tick down
+    // as if it were a segment.
+    if (state.options.segmentEnabled) {
+      state.timeMs = 0;
+      state.clockRunning = false;
     }
   }
 
