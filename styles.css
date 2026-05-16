@@ -55,7 +55,7 @@ html, body {
   padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 26px;
+  gap: 10px;
 }
 
 /* ==================== SCOREBOARD (Nevco 4760) ==================== */
@@ -261,7 +261,7 @@ html, body {
   max-width: 880px;
   display: flex;
   justify-content: center;
-  padding: 10px 16px;
+  padding: 4px 12px;
   background: linear-gradient(180deg, #1c1c1f 0%, #0e0e10 100%);
   border: 1px solid #2a2a2e;
   border-radius: 12px;
@@ -272,7 +272,6 @@ html, body {
 
 .led-window {
   position: relative;
-  height: 56px;
   padding: 6px 16px;
   background: var(--led-window-bg);
   border: 1px solid #1a0a08;
@@ -291,7 +290,7 @@ html, body {
 .led-bg,
 .led-fg {
   font-family: 'DSEG14 Classic Mini', 'DSEG14ClassicMini', 'Share Tech Mono', monospace;
-  font-size: clamp(11px, 1.63vw, 21px);
+  font-size: clamp(13px, 1.96vw, 25px);
   letter-spacing: 0.08em;
   white-space: nowrap;
 }
