@@ -201,6 +201,7 @@
 
   let audioCtx = null;
   let hornNodes = null;
+  let audioPrimed = false;
 
   function ensureAudio() {
     if (!audioCtx) {
@@ -209,6 +210,40 @@
       audioCtx = new Ctx();
     }
     if (audioCtx.state === 'suspended') audioCtx.resume();
+  }
+
+  // Browsers block both AudioContext construction and the resume() call
+  // until a user gesture, so the very first horn press would otherwise pay
+  // for the whole audio-stack warmup (context init + resume + output device
+  // startup), which the operator perceives as a noticeable lag. Wire a
+  // one-shot priming handler on document-level so the FIRST gesture
+  // anywhere - clicking a key, pressing a digit, anything - resumes the
+  // context and bounces a 1-sample silent buffer through the destination.
+  // That keeps the first audible horn press under typical audio-frame
+  // latency.
+  function primeAudioOnce() {
+    if (audioPrimed) return;
+    ensureAudio();
+    if (!audioCtx) return;
+    try {
+      const buf = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf;
+      src.connect(audioCtx.destination);
+      src.start();
+    } catch (_) { /* some older engines: ignore */ }
+    audioPrimed = true;
+  }
+
+  function bindAudioPrimer() {
+    const events = ['pointerdown', 'touchstart', 'keydown'];
+    const handler = () => {
+      primeAudioOnce();
+      if (audioPrimed) {
+        events.forEach(e => document.removeEventListener(e, handler, true));
+      }
+    };
+    events.forEach(e => document.addEventListener(e, handler, true));
   }
 
   function startHorn() {
@@ -222,8 +257,10 @@
     osc2.type = 'square';
     osc2.frequency.value = 145;
     const gain = audioCtx.createGain();
-    gain.gain.value = 0;
-    gain.gain.linearRampToValueAtTime(0.18, now + 0.04);
+    // Short attack ramp (was 40 ms) so the horn is audible essentially
+    // instantly while still avoiding a pop on bare-square onset.
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.18, now + 0.008);
     osc1.connect(gain);
     osc2.connect(gain);
     gain.connect(audioCtx.destination);
@@ -1899,6 +1936,7 @@
     els.hornButton = document.getElementById('horn-button');
     bindKeypad();
     bindKeyboard();
+    bindAudioPrimer();
     requestAnimationFrame((t) => { lastTick = t; tick(t); });
   }
 
