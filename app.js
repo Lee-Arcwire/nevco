@@ -1374,19 +1374,21 @@
     const item = currentMenuItem();
     const buf = state.buffer;
     if (m.editing === 'time4') {
-      // Manual: "If less than 4 digits are entered and YES is pressed
-      // then zeros will be placed in the unfilled digits and the time
-      // will be accepted." (Empty buffer is treated as cancel, not a
-      // commit of 00:00.)
+      // Empty buffer: treat ENTER as a clean back-out (don't zap the
+      // current value with 00:00).
       if (buf.length === 0) { m.editing = null; state.buffer = ''; return; }
-      const padded = buf.padEnd(4, '0');
-      const ms = parseTimeDigits(padded);
+      // Anything other than a full MMSS is rejected. Auto-commit already
+      // covers the all-four-digits case; intermediate states ('1' meaning
+      // 10:00, '30' meaning 30:00) are too easy to misread and have caused
+      // users to accidentally set segments to unintended lengths.
+      if (buf.length !== 4) { flashLed('NEED 4 DIGITS'); return; }
+      const ms = parseTimeDigits(buf);
       if (ms == null || ms < 0) { flashLed('BAD TIME'); return; }
       item.set(ms);
     } else if (m.editing === 'time5') {
       if (buf.length === 0) { m.editing = null; state.buffer = ''; return; }
-      const padded = buf.padEnd(5, '0');
-      const ms = parseTimeDigits5(padded);
+      if (buf.length !== 5) { flashLed('NEED 5 DIGITS'); return; }
+      const ms = parseTimeDigits5(buf);
       if (ms == null || ms < 0) { flashLed('BAD TIME'); return; }
       item.set(ms);
     } else if (m.editing === 'digit') {
