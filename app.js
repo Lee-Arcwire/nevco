@@ -104,6 +104,31 @@
         timeMs:    60 * 1000,
         warningMs:  5 * 1000,
       })),
+      // Stubbed menu values - persisted but no live behavior yet.
+      // (See the MPC7 hockey manual for the intended semantics; this just
+      // mirrors the menu structure so every option has a place to live.)
+      intervalHornEnabled:  false,
+      intervalHornMs:       60 * 1000,
+      displayShotSave:      true,
+      shotBlankUnderMain:   false,
+      scs1TimeMs:           30 * 1000,
+      scs2TimeMs:           15 * 1000,
+      hhsFunction:          'Goal Light',  // | 'Shot Clock'
+      homeName:             'HOME',
+      guestName:            'GUESTS',
+      defaultProfileLock:   true,
+      auxTimeMs:            0,
+      auxCountDown:         true,
+      auxTimeSwitch:        false,
+      auxStopTimeMs:        0,
+      auxStyle:             'MM:SS',       // | 'HH:MM'
+      auxDisplay:           'Main',        // | 'Aux' | 'TOD'
+      hornVolume:           5,
+      hornEopTone:          1,
+      hornKeyTone:          1,
+      hornAuxTone:          1,
+      hornTimeOutTone:      1,
+      hornSegmentTone:      1,
     },
     // OPTIONS menu navigation state. null when no menu is open.
     menu: null,
@@ -414,12 +439,14 @@
     const buf = state.buffer || '';
     if (m.editing === 'time4')   return `${lbl} ${previewTime(buf)}◄`;
     if (m.editing === 'time5')   return `${lbl} ${previewTime5(buf)}◄`;
+    if (m.editing === 'digit')   return `${lbl}: ${buf || '_'}◄`;
     if (m.editing === 'numeric') return `${lbl} ${buf || '_'}◄`;
 
     if (item.type === 'toggle')  return item.get() ? `${lbl}*` : lbl;
     if (item.type === 'arrow')   return `${lbl}: ${item.get() ? '▼' : '▲'}`;
     if (item.type === 'time4')   return `${lbl} ${formatPenaltyTime(item.get())}`;
     if (item.type === 'time5')   return `${lbl} ${formatTime5(item.get())}`;
+    if (item.type === 'digit')   return `${lbl}: ${item.get()}`;
     if (item.type === 'numeric') return `${lbl} ${item.get()}`;
     return lbl;
   }
@@ -893,6 +920,50 @@
       ],
     },
     {
+      // Hockey option: Interval Horn. Stub only - the values persist but no
+      // live interval-horn loop is running yet.
+      label: 'Interval Horn',
+      items: [
+        { label: 'Enable',   type: 'toggle',
+          get: () => state.options.intervalHornEnabled,
+          set: (v) => state.options.intervalHornEnabled = v },
+        { label: 'Int Time', type: 'time5',
+          get: () => state.options.intervalHornMs,
+          set: (ms) => state.options.intervalHornMs = ms },
+      ],
+    },
+    {
+      // Hockey option: show shots / saves digit pair on the scoreboard.
+      // Stub only - the 4760 layout already renders the digit cells.
+      label: 'Disp Shot/Save', type: 'toggle',
+      get: () => state.options.displayShotSave,
+      set: (v) => state.options.displayShotSave = v,
+    },
+    {
+      // Shot Clocks: stubbed; the 4760 has no shot clock.
+      label: 'Shot Clocks',
+      items: [
+        { label: 'Edit Shot Clk', type: 'action',
+          do: () => flashLed('STUB: edit shot') },
+        { label: 'ST > MT Blank', type: 'toggle',
+          get: () => state.options.shotBlankUnderMain,
+          set: (v) => state.options.shotBlankUnderMain = v },
+        { label: 'SCS1 Time', type: 'time5',
+          get: () => state.options.scs1TimeMs,
+          set: (ms) => state.options.scs1TimeMs = ms },
+        { label: 'SCS2 Time', type: 'time5',
+          get: () => state.options.scs2TimeMs,
+          set: (ms) => state.options.scs2TimeMs = ms },
+      ],
+    },
+    {
+      // HHS Function: which function the RCS-7 wireless handheld switch
+      // performs (Goal Light or Shot Clock). Stub.
+      label: 'HHS Function', type: 'cycle', values: ['Goal Light', 'Shot Clock'],
+      get: () => state.options.hhsFunction,
+      set: (v) => state.options.hhsFunction = v,
+    },
+    {
       label: 'Main Time',
       items: [
         { label: 'Direction',     type: 'arrow',
@@ -904,6 +975,27 @@
         { label: 'Disable .1',    type: 'toggle',
           get: () => state.options.disableTenths,
           set: (v) => state.options.disableTenths = v },
+      ],
+    },
+    {
+      // Aux Time: stubbed; the 4760 doesn't display an aux timer.
+      label: 'Aux Time',
+      items: [
+        { label: 'Set Aux',     type: 'time5',
+          get: () => state.options.auxTimeMs,
+          set: (ms) => state.options.auxTimeMs = ms },
+        { label: 'Direction',   type: 'arrow',
+          get: () => state.options.auxCountDown,
+          set: (v) => state.options.auxCountDown = v },
+        { label: 'Time Switch', type: 'toggle',
+          get: () => state.options.auxTimeSwitch,
+          set: (v) => state.options.auxTimeSwitch = v },
+        { label: 'Stop Time',   type: 'time4',
+          get: () => state.options.auxStopTimeMs,
+          set: (ms) => state.options.auxStopTimeMs = ms },
+        { label: 'Style',       type: 'cycle', values: ['MM:SS', 'HH:MM'],
+          get: () => state.options.auxStyle,
+          set: (v) => state.options.auxStyle = v },
       ],
     },
     {
@@ -974,6 +1066,80 @@
     {
       label: 'Swap H&G', type: 'action',
       do: () => { swapHomeAndGuest(); flashLed('SWAPPED'); },
+    },
+    {
+      // Team Names: stubbed. Real device uses an alphanumeric keypad mode
+      // to type team names; not implemented yet.
+      label: 'Team Names',
+      items: [
+        { label: 'Guest Name', type: 'action',
+          do: () => flashLed('STUB: enter guest', 1500) },
+        { label: 'Home Name',  type: 'action',
+          do: () => flashLed('STUB: enter home', 1500) },
+      ],
+    },
+    {
+      // Profiles: load / save / default-lock. Stubbed - profile system is
+      // a separate feature (100 slots, sport-specific defaults).
+      label: 'Profiles',
+      items: [
+        { label: 'Load Profile', type: 'action',
+          do: () => flashLed('STUB: load prof', 1500) },
+        { label: 'Save Profile', type: 'action',
+          do: () => flashLed('STUB: save prof', 1500) },
+        { label: 'Default Lock', type: 'toggle',
+          get: () => state.options.defaultProfileLock,
+          set: (v) => state.options.defaultProfileLock = v },
+      ],
+    },
+    {
+      // Aux Display: which source the auxiliary scoreboard timer follows.
+      label: 'Aux Display', type: 'cycle', values: ['Main', 'Aux', 'TOD'],
+      get: () => state.options.auxDisplay,
+      set: (v) => state.options.auxDisplay = v,
+    },
+    {
+      // Horn Settings: tone selection (0-9) for each event horn and overall
+      // volume. Stubbed - the emulator's web-audio horn doesn't yet pick
+      // tones; values persist for future use.
+      label: 'Horn Settings',
+      items: [
+        { label: 'Volume',   type: 'digit',
+          get: () => state.options.hornVolume,
+          set: (n) => state.options.hornVolume = n },
+        { label: 'EOP Tone', type: 'digit',
+          get: () => state.options.hornEopTone,
+          set: (n) => state.options.hornEopTone = n },
+        { label: 'Key Tone', type: 'digit',
+          get: () => state.options.hornKeyTone,
+          set: (n) => state.options.hornKeyTone = n },
+        { label: 'Aux Tone', type: 'digit',
+          get: () => state.options.hornAuxTone,
+          set: (n) => state.options.hornAuxTone = n },
+        { label: 'TO Tone',  type: 'digit',
+          get: () => state.options.hornTimeOutTone,
+          set: (n) => state.options.hornTimeOutTone = n },
+        { label: 'Seg Tone', type: 'digit',
+          get: () => state.options.hornSegmentTone,
+          set: (n) => state.options.hornSegmentTone = n },
+      ],
+    },
+    {
+      // Wireless: link / add / delete receivers. Hardware feature, stubbed.
+      label: 'Wireless',
+      items: [
+        { label: 'Link Recv', type: 'action',
+          do: () => flashLed('STUB: link recv', 1500) },
+        { label: 'Add Recv',  type: 'action',
+          do: () => flashLed('STUB: add recv', 1500) },
+        { label: 'Del Recv',  type: 'action',
+          do: () => flashLed('STUB: del recv', 1500) },
+      ],
+    },
+    {
+      // Scoreboard Model: hardware feature, stubbed.
+      label: 'Scoreboard Model', type: 'action',
+      do: () => flashLed('STUB: model', 1500),
     },
     {
       label: 'Time of Day', type: 'action',
@@ -1082,7 +1248,7 @@
       persistOptions();
       return true;
     }
-    if (item.type === 'time4' || item.type === 'time5' || item.type === 'numeric') {
+    if (item.type === 'time4' || item.type === 'time5' || item.type === 'digit' || item.type === 'numeric') {
       m.editing = item.type;
       state.buffer = '';
       return true;
@@ -1093,6 +1259,7 @@
 
   // Buffer length each edit type requires. Auto-accept fires when reached.
   function editingMaxLen(kind) {
+    if (kind === 'digit') return 1;
     if (kind === 'time4') return 4;
     if (kind === 'time5') return 5;
     return 4; // numeric: at most a few digits, no hard cap
@@ -1112,6 +1279,11 @@
       const ms = parseTimeDigits5(buf);
       if (ms == null || ms < 0) { flashLed('BAD TIME'); return; }
       item.set(ms);
+    } else if (m.editing === 'digit') {
+      if (buf.length !== 1) { flashLed('NEED DIGIT'); return; }
+      const n = parseInt(buf, 10);
+      if (Number.isNaN(n) || n < 0 || n > 9) { flashLed('BAD #'); return; }
+      item.set(n);
     } else if (m.editing === 'numeric') {
       const n = parseInt(buf, 10);
       if (Number.isNaN(n)) { flashLed('BAD #'); return; }
@@ -1138,7 +1310,7 @@
     const max = editingMaxLen(m.editing);
     if (state.buffer.length < max) state.buffer += d;
     // Per the manual: time entries auto-accept once the buffer is full.
-    if (state.buffer.length === max && (m.editing === 'time4' || m.editing === 'time5')) {
+    if (state.buffer.length === max && (m.editing === 'time4' || m.editing === 'time5' || m.editing === 'digit')) {
       commitMenuEdit();
     }
     return true;
