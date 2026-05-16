@@ -49,7 +49,7 @@
   // migration that overwrites segments / time-outs / currentSegIdx /
   // currentTimeOutIdx with the latest factory defaults (currently the
   // interval-horn segment config).
-  const OPTIONS_VERSION = 3;
+  const OPTIONS_VERSION = 4;
   const MAX_SCORE = 99;
   const MAX_PERIOD = 9;
   const MAX_SHOTS = 99;
@@ -113,7 +113,7 @@
       segmentDispOnBoard:   false,
       currentSegIdx:        0,
       segments: Array.from({ length: 20 }, (_, i) => i === 0
-        ? { timeMs: 60 * 1000, autoHorn: true,  autoAdvance: true  }
+        ? { timeMs: 88 * 1000, autoHorn: true,  autoAdvance: true  }
         : { timeMs: 0,         autoHorn: false, autoAdvance: false }),
       // Time Out Timer: 5 individually settable timers, each with its own
       // warning time. As above, the live countdown isn't wired yet.
@@ -1454,12 +1454,13 @@
     return typeof item.labelFn === 'function' ? item.labelFn() : item.label;
   }
 
-  // Factory defaults for the segment timer: manual's interval-horn example -
-  // segment 1 = 1:00 with Auto Horn + Auto Advance on, segments 2-20 = 0:00
-  // (treated as unused, per the manual's "project less than 20" note).
+  // Factory defaults for the segment timer: manual's interval-horn shape
+  // (segment 1 with Auto Horn + Auto Advance on, segments 2-20 = 0:00 and
+  // treated as unused per the manual's "project less than 20" note), seeded
+  // at 1:28 per local preference.
   function makeDefaultSegments() {
     return Array.from({ length: 20 }, (_, i) => i === 0
-      ? { timeMs: 60 * 1000, autoHorn: true,  autoAdvance: true  }
+      ? { timeMs: 88 * 1000, autoHorn: true,  autoAdvance: true  }
       : { timeMs: 0,         autoHorn: false, autoAdvance: false });
   }
 
