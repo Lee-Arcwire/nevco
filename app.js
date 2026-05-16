@@ -88,14 +88,19 @@
       // Segment Timer: up to 20 settable segments, plus a "current" pointer
       // that the per-slot menu leaves read / write. Live segment-running
       // behaviour is not yet wired - the menu just persists the values.
+      //
+      // Default configuration is the manual's "Interval Horn" example:
+      // one segment of 1:00 with Auto Horn and Auto Advance both on, the
+      // remaining 19 slots empty (treated as unused per the manual: the
+      // project length is determined by the first contiguous run of
+      // non-zero segments). Toggling Segment Timer > Enable starts firing
+      // a horn every minute out of the box.
       segmentEnabled:       false,
       segmentDispOnBoard:   false,
       currentSegIdx:        0,
-      segments: Array.from({ length: 20 }, () => ({
-        timeMs:      60 * 1000,
-        autoHorn:    false,
-        autoAdvance: false,
-      })),
+      segments: Array.from({ length: 20 }, (_, i) => i === 0
+        ? { timeMs: 60 * 1000, autoHorn: true,  autoAdvance: true  }
+        : { timeMs: 0,         autoHorn: false, autoAdvance: false }),
       // Time Out Timer: 5 individually settable timers, each with its own
       // warning time. As above, the live countdown isn't wired yet.
       timeOutDispOnBoard:   false,
@@ -1192,9 +1197,10 @@
     // dereference undefined.
     const segs = state.options.segments;
     if (!Array.isArray(segs) || segs.length !== 20) {
-      state.options.segments = Array.from({ length: 20 }, () => ({
-        timeMs: 60 * 1000, autoHorn: false, autoAdvance: false,
-      }));
+      // Same factory default as the state-init block: interval-horn config.
+      state.options.segments = Array.from({ length: 20 }, (_, i) => i === 0
+        ? { timeMs: 60 * 1000, autoHorn: true,  autoAdvance: true  }
+        : { timeMs: 0,         autoHorn: false, autoAdvance: false });
     }
     const tos = state.options.timeOuts;
     if (!Array.isArray(tos) || tos.length !== 5) {
