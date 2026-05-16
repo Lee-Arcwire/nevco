@@ -64,7 +64,9 @@ html, body {
 
 .sb-board {
   width: 100%;
-  max-width: 1024px;
+  /* Match the controller / controller-display max width so the three
+     stacked panels share a width. */
+  max-width: 880px;
   background:
     radial-gradient(ellipse at top, #1f4378 0%, var(--sb-board) 55%, #0e2349 100%);
   border: 3px solid var(--sb-board-edge);
@@ -76,7 +78,8 @@ html, body {
   display: grid;
   grid-template-columns: auto auto 1fr auto auto;
   align-items: center;
-  gap: clamp(4px, 1.10cqi, 14px);
+  /* Tighter inter-cell gap so the score sits hard against the clock. */
+  gap: clamp(2px, 0.55cqi, 8px);
   /* The board is its own size container: all digit / tag / padding / gap
      sizes inside use cqi (1% of board width), so the content always scales
      to fit the chassis instead of overflowing the blue background. */
@@ -135,7 +138,8 @@ html, body {
 .seg-2     { font-size: clamp(8px,  3.60cqi, 37px); min-width: 1.4em; }
 .seg-4     { font-size: clamp(7px,  3.13cqi, 32px); min-width: 2.6em; }
 .seg-clock { font-size: clamp(14px, 6.56cqi, 67px); min-width: 2.9em; }
-.seg-score { font-size: clamp(11px, 5.31cqi, 54px); }
+/* Home / Guests score share the main clock size per request. */
+.seg-score { font-size: clamp(14px, 6.56cqi, 67px); }
 .seg-shot  { font-size: clamp(7px,  2.66cqi, 27px); }
 .sb-period-row .seg-1 { font-size: clamp(8px, 3.28cqi, 34px); }
 
@@ -198,7 +202,8 @@ html, body {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 0 clamp(2px, 0.94cqi, 12px);
+  /* No horizontal padding so the score windows hug the clock. */
+  padding: 0;
 }
 
 .sb-brand-mark {
