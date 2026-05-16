@@ -466,6 +466,7 @@
     if (item.type === 'cycle')   return `${lbl}: ${item.get()}`;
 
     if (item.type === 'toggle')  return item.get() ? `${lbl}*` : lbl;
+    if (item.type === 'radio')   return item.get() ? `${lbl}*` : lbl;
     if (item.type === 'arrow')   return `${lbl}: ${item.get() ? '▼' : '▲'}`;
     if (item.type === 'time4')   return `${lbl} ${formatPenaltyTime(item.get())}`;
     if (item.type === 'time5')   return `${lbl} ${formatTime5(item.get())}`;
@@ -1139,9 +1140,21 @@
     },
     // 9. Aux Display ---------------------------------------------------
     {
-      label: 'Aux Display', type: 'cycle', values: ['Main', 'Aux', 'TOD'],
-      get: () => state.options.auxDisplay,
-      set: (v) => state.options.auxDisplay = v,
+      // Auxiliary timer source. Manual: sub-menu with 3 radio entries
+      // (Display Main / Display Aux / Display TOD); the active one shows
+      // an asterisk and selecting another moves the asterisk.
+      label: 'Aux Display',
+      items: [
+        { label: 'Display Main', type: 'radio',
+          get:    () => state.options.auxDisplay === 'Main',
+          select: () => state.options.auxDisplay = 'Main' },
+        { label: 'Display Aux',  type: 'radio',
+          get:    () => state.options.auxDisplay === 'Aux',
+          select: () => state.options.auxDisplay = 'Aux' },
+        { label: 'Display TOD',  type: 'radio',
+          get:    () => state.options.auxDisplay === 'TOD',
+          select: () => state.options.auxDisplay = 'TOD' },
+      ],
     },
     // 10. Horn Settings ------------------------------------------------
     // Tone selection (0-9) for each event horn and overall volume.
@@ -1303,6 +1316,13 @@
     // Toggle a flag.
     if (item.type === 'toggle' || item.type === 'arrow') {
       item.set(!item.get());
+      persistOptions();
+      return true;
+    }
+    // Radio (mutually exclusive): selecting always sets this option,
+    // even if it's already the active one.
+    if (item.type === 'radio') {
+      item.select();
       persistOptions();
       return true;
     }
