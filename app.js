@@ -88,6 +88,9 @@
     // VIEW PENALTY mode. {team, idx} when cycling through penalties.
     // EDIT PENALTY drills into the currently-viewed slot.
     viewPenalty: null,
+    // SCROLL PROFILES menu. {idx} when open. Each SCROLL PROFILES press
+    // advances; ENTER selects, NO/CANCEL exits.
+    profileMenu: null,
     // Persisted OPTIONS menu values. Saved to localStorage on change.
     // See MPC7_Hockey_135-0222.PDF for the menu structure these mirror.
     options: {
@@ -492,6 +495,7 @@
     if (state.flash && Date.now() < state.flashUntil) return state.flash;
     if (state.blanked) return 'BLANK';
     if (state.menu) return menuLedText();
+    if (state.profileMenu) return PROFILE_MENU[state.profileMenu.idx].label;
     if (!state.entry) {
       if (state.setMode) return 'SET';
       // VIEW PENALTY mode: show the currently-cycled penalty until another
@@ -1050,7 +1054,9 @@
 
   function pressCancel() {
     if (pressMenuCancel()) return;
-    if (state.entry) {
+    if (state.profileMenu) {
+      state.profileMenu = null;
+    } else if (state.entry) {
       cancelEntry();
     } else if (state.viewPenalty) {
       state.viewPenalty = null;
@@ -1061,6 +1067,12 @@
 
   function pressEnter() {
     if (pressMenuYes()) return;
+    if (state.profileMenu) {
+      const item = PROFILE_MENU[state.profileMenu.idx];
+      state.profileMenu = null;
+      item.do();
+      return;
+    }
     const e = state.entry;
     if (!e) return;
     const buf = state.buffer;
@@ -1678,8 +1690,41 @@
     return true;
   }
 
+  // SCROLL PROFILES: two-item menu. ENTER selects, NO/CANCEL exits.
+  const PROFILE_MENU = [
+    { label: '01 - HOCKEY', do: () => { /* no-op: just close the menu */ } },
+    { label: 'Clear All',   do: () => clearAllScoreboard() },
+  ];
+
   function pressScrollProfiles() {
-    flashLed('PROFILES');
+    if (state.profileMenu == null) {
+      state.profileMenu = { idx: 0 };
+      return;
+    }
+    state.profileMenu.idx = (state.profileMenu.idx + 1) % PROFILE_MENU.length;
+  }
+
+  // Reset everything the scoreboard shows back to factory defaults so the
+  // operator can start a fresh game. Options (segment timer, brightness,
+  // etc.) are intentionally NOT touched - those live in localStorage and
+  // are a long-lived configuration, not per-game state.
+  function clearAllScoreboard() {
+    state.home  = { score: 0, shots: 0, saves: 0, tol: 1, penalties: [] };
+    state.guest = { score: 0, shots: 0, saves: 0, tol: 1, penalties: [] };
+    state.period         = 1;
+    state.timeMs         = PERIOD_DEFAULT_MS;
+    state.clockRunning   = false;
+    state.segmentTimeMs  = 0;
+    state.autoHornUntil  = 0;
+    state.goalLightUntil = 0;
+    state.hornManual     = false;
+    state.penaltyPaused  = false;
+    state.blanked        = false;
+    state.setMode        = false;
+    state.entry          = null;
+    state.buffer         = '';
+    state.viewPenalty    = null;
+    flashLed('CLEARED', 1500);
   }
 
   function pressTimeOfDay() {
