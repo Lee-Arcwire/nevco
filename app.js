@@ -85,6 +85,25 @@
       autoHorn:             true,    // Main Time > Auto Horn
       disableTenths:        false,   // Main Time > Disable .1
       brightness:           'High',  // Brightness ('High' | 'Low')
+      // Segment Timer: up to 20 settable segments, plus a "current" pointer
+      // that the per-slot menu leaves read / write. Live segment-running
+      // behaviour is not yet wired - the menu just persists the values.
+      segmentEnabled:       false,
+      segmentDispOnBoard:   false,
+      currentSegIdx:        0,
+      segments: Array.from({ length: 20 }, () => ({
+        timeMs:      60 * 1000,
+        autoHorn:    false,
+        autoAdvance: false,
+      })),
+      // Time Out Timer: 5 individually settable timers, each with its own
+      // warning time. As above, the live countdown isn't wired yet.
+      timeOutDispOnBoard:   false,
+      currentTimeOutIdx:    0,
+      timeOuts: Array.from({ length: 5 }, () => ({
+        timeMs:    60 * 1000,
+        warningMs:  5 * 1000,
+      })),
     },
     // OPTIONS menu navigation state. null when no menu is open.
     menu: null,
@@ -230,6 +249,35 @@
     return formatPenaltyTime(ms);
   }
 
+  // 5-digit MM:SS.s parser, used by Segment Timer and Time Out Timer
+  // entries (per the manual: "Enter the minutes, seconds, and 10th of
+  // seconds").
+  function parseTimeDigits5(digits) {
+    if (!digits || digits.length !== 5) return null;
+    const m = parseInt(digits.slice(0, 2), 10);
+    const s = parseInt(digits.slice(2, 4), 10);
+    const t = parseInt(digits.slice(4, 5), 10);
+    if (Number.isNaN(m) || Number.isNaN(s) || Number.isNaN(t)) return null;
+    if (s > 59 || t > 9) return null;
+    return m * 60000 + s * 1000 + t * 100;
+  }
+
+  function formatTime5(ms) {
+    if (ms <= 0) return '0:00.0';
+    const total = Math.max(0, Math.floor(ms / 100)); // tenths
+    const m = Math.floor(total / 600);
+    const s = Math.floor((total % 600) / 10);
+    const t = total % 10;
+    return `${m}:${pad2(s)}.${t}`;
+  }
+
+  function previewTime5(digits) {
+    if (!digits) return '--:--.-';
+    const ms = parseTimeDigits5(digits.padEnd(5, '0'));
+    if (ms == null) return '??:??.?';
+    return formatTime5(ms);
+  }
+
   function formatWallClock() {
     const d = new Date();
     return `${pad2(d.getHours())}:${pad2(d.getMinutes())}.${pad2(d.getSeconds())}`;
@@ -357,20 +405,23 @@
     const arrow = (it) => it.items ? ` >>` : '';
 
     if (m.subIdx == null) {
-      if (top.type === 'cycle') return `${top.label}: ${top.get()}`;
-      return `${top.label}${arrow(top)}`;
+      if (top.type === 'cycle') return `${itemLabel(top)}: ${top.get()}`;
+      return `${itemLabel(top)}${arrow(top)}`;
     }
 
     const item = top.items[m.subIdx];
+    const lbl = itemLabel(item);
     const buf = state.buffer || '';
-    if (m.editing === 'time4') return `${item.label} ${previewTime(buf)}◄`;
-    if (m.editing === 'numeric') return `${item.label} ${buf || '_'}◄`;
+    if (m.editing === 'time4')   return `${lbl} ${previewTime(buf)}◄`;
+    if (m.editing === 'time5')   return `${lbl} ${previewTime5(buf)}◄`;
+    if (m.editing === 'numeric') return `${lbl} ${buf || '_'}◄`;
 
-    if (item.type === 'toggle')  return item.get() ? `${item.label}*` : item.label;
-    if (item.type === 'arrow')   return `${item.label}: ${item.get() ? '▼' : '▲'}`;
-    if (item.type === 'time4')   return `${item.label} ${formatPenaltyTime(item.get())}`;
-    if (item.type === 'numeric') return `${item.label} ${item.get()}`;
-    return item.label;
+    if (item.type === 'toggle')  return item.get() ? `${lbl}*` : lbl;
+    if (item.type === 'arrow')   return `${lbl}: ${item.get() ? '▼' : '▲'}`;
+    if (item.type === 'time4')   return `${lbl} ${formatPenaltyTime(item.get())}`;
+    if (item.type === 'time5')   return `${lbl} ${formatTime5(item.get())}`;
+    if (item.type === 'numeric') return `${lbl} ${item.get()}`;
+    return lbl;
   }
 
   // ---------------------------------------------------------------
@@ -802,6 +853,58 @@
       ],
     },
     {
+      // Segment Timer: per the manual, up to 20 segments. The manual nests
+      // per-segment fields under an "Edit Segment" sub-sub-menu - flattened
+      // here so the existing 2-deep navigation still works. "Next Seg"
+      // cycles which slot the per-slot fields read / write.
+      label: 'Segment Timer',
+      items: [
+        { label: 'Enable', type: 'toggle',
+          get: () => state.options.segmentEnabled,
+          set: (v) => state.options.segmentEnabled = v },
+        { label: 'Disp On Board', type: 'toggle',
+          get: () => state.options.segmentDispOnBoard,
+          set: (v) => state.options.segmentDispOnBoard = v },
+        { labelFn: () => `Seg ${state.options.currentSegIdx + 1} Time`, type: 'time5',
+          get: () => state.options.segments[state.options.currentSegIdx].timeMs,
+          set: (ms) => state.options.segments[state.options.currentSegIdx].timeMs = ms },
+        { label: 'Auto Horn', type: 'toggle',
+          get: () => state.options.segments[state.options.currentSegIdx].autoHorn,
+          set: (v) => state.options.segments[state.options.currentSegIdx].autoHorn = v },
+        { label: 'Auto Adv',  type: 'toggle',
+          get: () => state.options.segments[state.options.currentSegIdx].autoAdvance,
+          set: (v) => state.options.segments[state.options.currentSegIdx].autoAdvance = v },
+        { label: 'Next Seg',  type: 'action',
+          do: () => {
+            state.options.currentSegIdx = (state.options.currentSegIdx + 1) % state.options.segments.length;
+            persistOptions();
+            flashLed(`SEG ${state.options.currentSegIdx + 1}`, 800);
+          } },
+      ],
+    },
+    {
+      // Time Out Timer: 5 individually settable timers, each with its own
+      // warning time. "Next TO" cycles which slot is currently edited.
+      label: 'TimeOut Timer',
+      items: [
+        { label: 'Disp On Board', type: 'toggle',
+          get: () => state.options.timeOutDispOnBoard,
+          set: (v) => state.options.timeOutDispOnBoard = v },
+        { labelFn: () => `Time ${state.options.currentTimeOutIdx + 1}`, type: 'time5',
+          get: () => state.options.timeOuts[state.options.currentTimeOutIdx].timeMs,
+          set: (ms) => state.options.timeOuts[state.options.currentTimeOutIdx].timeMs = ms },
+        { labelFn: () => `Warn ${state.options.currentTimeOutIdx + 1}`, type: 'time5',
+          get: () => state.options.timeOuts[state.options.currentTimeOutIdx].warningMs,
+          set: (ms) => state.options.timeOuts[state.options.currentTimeOutIdx].warningMs = ms },
+        { label: 'Next TO', type: 'action',
+          do: () => {
+            state.options.currentTimeOutIdx = (state.options.currentTimeOutIdx + 1) % state.options.timeOuts.length;
+            persistOptions();
+            flashLed(`TO ${state.options.currentTimeOutIdx + 1}`, 800);
+          } },
+      ],
+    },
+    {
       label: 'Brightness', type: 'cycle', values: ['High', 'Low'],
       get: () => state.options.brightness,
       set: (v) => state.options.brightness = v,
@@ -816,11 +919,31 @@
     },
   ];
 
+  // Pull the visible label off a menu node (label OR labelFn).
+  function itemLabel(item) {
+    return typeof item.labelFn === 'function' ? item.labelFn() : item.label;
+  }
+
   function loadOptions() {
     try {
       const raw = localStorage.getItem('nevco-options');
       if (raw) Object.assign(state.options, JSON.parse(raw));
     } catch (_) { /* ignore: incognito / blocked storage */ }
+    // Guard array shape: if older saves omit these (or saved a malformed
+    // value), restore the factory defaults so per-slot menu leaves don't
+    // dereference undefined.
+    const segs = state.options.segments;
+    if (!Array.isArray(segs) || segs.length !== 20) {
+      state.options.segments = Array.from({ length: 20 }, () => ({
+        timeMs: 60 * 1000, autoHorn: false, autoAdvance: false,
+      }));
+    }
+    const tos = state.options.timeOuts;
+    if (!Array.isArray(tos) || tos.length !== 5) {
+      state.options.timeOuts = Array.from({ length: 5 }, () => ({
+        timeMs: 60 * 1000, warningMs: 5 * 1000,
+      }));
+    }
   }
 
   function persistOptions() {
@@ -890,13 +1013,20 @@
       persistOptions();
       return true;
     }
-    if (item.type === 'time4' || item.type === 'numeric') {
+    if (item.type === 'time4' || item.type === 'time5' || item.type === 'numeric') {
       m.editing = item.type;
       state.buffer = '';
       return true;
     }
     if (item.type === 'action') { item.do(); return true; }
     return true;
+  }
+
+  // Buffer length each edit type requires. Auto-accept fires when reached.
+  function editingMaxLen(kind) {
+    if (kind === 'time4') return 4;
+    if (kind === 'time5') return 5;
+    return 4; // numeric: at most a few digits, no hard cap
   }
 
   function commitMenuEdit() {
@@ -906,6 +1036,11 @@
     if (m.editing === 'time4') {
       if (buf.length !== 4) { flashLed('NEED MMSS'); return; }
       const ms = parseTimeDigits(buf);
+      if (ms == null || ms < 0) { flashLed('BAD TIME'); return; }
+      item.set(ms);
+    } else if (m.editing === 'time5') {
+      if (buf.length !== 5) { flashLed('NEED MMSST'); return; }
+      const ms = parseTimeDigits5(buf);
       if (ms == null || ms < 0) { flashLed('BAD TIME'); return; }
       item.set(ms);
     } else if (m.editing === 'numeric') {
@@ -931,8 +1066,12 @@
   function pressMenuNum(d) {
     const m = state.menu;
     if (!m || !m.editing) return false;
-    const max = m.editing === 'time4' ? 4 : 4;
+    const max = editingMaxLen(m.editing);
     if (state.buffer.length < max) state.buffer += d;
+    // Per the manual: time entries auto-accept once the buffer is full.
+    if (state.buffer.length === max && (m.editing === 'time4' || m.editing === 'time5')) {
+      commitMenuEdit();
+    }
     return true;
   }
 
