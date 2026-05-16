@@ -49,7 +49,7 @@
   // migration that overwrites segments / time-outs / currentSegIdx /
   // currentTimeOutIdx with the latest factory defaults (currently the
   // interval-horn segment config).
-  const OPTIONS_VERSION = 2;
+  const OPTIONS_VERSION = 3;
   const MAX_SCORE = 99;
   const MAX_PERIOD = 9;
   const MAX_SHOTS = 99;
@@ -1281,11 +1281,13 @@
     // (and reset their current-slot pointers). One-shot - subsequent loads
     // see the matching version and keep customised values.
     if (storedVersion !== OPTIONS_VERSION) {
-      state.options.segments         = makeDefaultSegments();
-      state.options.currentSegIdx    = 0;
-      state.options.timeOuts         = makeDefaultTimeOuts();
-      state.options.currentTimeOutIdx = 0;
-      state.options.optionsVersion   = OPTIONS_VERSION;
+      state.options.segments           = makeDefaultSegments();
+      state.options.currentSegIdx      = 0;
+      state.options.segmentEnabled     = false;
+      state.options.segmentDispOnBoard = false;
+      state.options.timeOuts           = makeDefaultTimeOuts();
+      state.options.currentTimeOutIdx  = 0;
+      state.options.optionsVersion     = OPTIONS_VERSION;
       persistOptions();
     }
 
