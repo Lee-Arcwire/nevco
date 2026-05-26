@@ -1,0 +1,16 @@
+# Node
+node_modules/
+
+# Tauri frontend bundle (assembled by scripts/copy-frontend.mjs)
+dist/
+
+# Rust / Tauri build output
+src-tauri/target/
+src-tauri/gen/
+
+# Affinity Designer/Photo lock files
+*.af~lock~
+
+# OS junk
+.DS_Store
+Thumbs.db

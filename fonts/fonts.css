@@ -1,0 +1,54 @@
+/* ====================================================================
+   Bundled web fonts (offline / no-CDN).
+   Replaces the former Google Fonts + jsDelivr DSEG links so the app
+   renders correctly with no internet — required for the packaged
+   Tauri desktop build and resilient on firewalled networks.
+
+   - Inter           : variable font, one file covers weights 400-700
+   - Share Tech Mono : monospace fallback for the segment displays
+   - DSEG7 Classic   : 7-segment scoreboard digits
+   - DSEG14 Classic Mini : 14-segment controller LED window
+   ==================================================================== */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('Inter-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'Share Tech Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('ShareTechMono-latin.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DSEG7 Classic';
+  font-style: normal;
+  font-weight: normal;
+  src: url('DSEG7Classic-Regular.woff2') format('woff2');
+}
+/* no-space alias used as a fallback in the CSS font stacks */
+@font-face {
+  font-family: 'DSEG7Classic';
+  font-style: normal;
+  font-weight: normal;
+  src: url('DSEG7Classic-Regular.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'DSEG14 Classic Mini';
+  font-style: normal;
+  font-weight: normal;
+  src: url('DSEG14ClassicMini-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'DSEG14ClassicMini';
+  font-style: normal;
+  font-weight: normal;
+  src: url('DSEG14ClassicMini-Regular.woff2') format('woff2');
+}
