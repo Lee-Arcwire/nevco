@@ -367,6 +367,25 @@ html, body {
     0 0 1px rgba(0, 0, 0, 0.5);
 }
 
+/* ==================== HELP BANNER ==================== */
+
+.help-banner {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  text-align: center;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: clamp(11px, 1.4vw, 15px);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: #c9cdd6;
+  background: linear-gradient(180deg, #1c1c1f 0%, #0e0e10 100%);
+  border: 1px solid #2a2a2e;
+  border-radius: 8px;
+  padding: 10px 16px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
 /* ==================== RESPONSIVE ==================== */
 
 /* Sizes scale fluidly via clamp(min, vw, max) on the rules above; no
