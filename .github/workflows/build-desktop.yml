@@ -1,0 +1,82 @@
+name: Build desktop apps
+
+# Builds the macOS (.dmg / .app) and Windows (.msi / .exe) installers.
+# - Push a tag like v1.0.0  -> builds all platforms and attaches the
+#   installers to a draft GitHub Release.
+# - "Run workflow" (workflow_dispatch) -> builds and uploads the installers
+#   as workflow artifacts you can download from the run page.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Universal macOS binary (Apple Silicon + Intel in one .dmg)
+          - platform: macos-latest
+            args: '--target universal-apple-darwin'
+            rust-targets: 'aarch64-apple-darwin,x86_64-apple-darwin'
+          # Windows x64
+          - platform: windows-latest
+            args: ''
+            rust-targets: ''
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Cache cargo build
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build the app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # On a tag push, create/append to a draft Release. On manual runs
+          # tagName is empty, so tauri-action skips the release and the
+          # "Upload artifacts" step below grabs the installers instead.
+          tagName: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+          releaseName: 'Nevco 4770 Emulator ${{ github.ref_name }}'
+          releaseBody: 'Desktop builds — Windows (.msi/.exe) and macOS (.dmg).'
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+      - name: Upload installers as workflow artifacts
+        if: ${{ github.ref_type != 'tag' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: nevco4770-${{ matrix.platform }}
+          if-no-files-found: ignore
+          path: |
+            src-tauri/target/release/bundle/**/*.dmg
+            src-tauri/target/release/bundle/**/*.app
+            src-tauri/target/**/release/bundle/**/*.dmg
+            src-tauri/target/**/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+            src-tauri/target/**/release/bundle/**/*.exe
